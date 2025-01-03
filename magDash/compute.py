@@ -97,6 +97,8 @@ def computeNightQuantities(data, date=None, location='LCO', deltat=5*u.minute):
    data['AM'] = airmass(aa.alt.to('degree').value)
    data['transit'] = obs.target_meridian_transit_time(date, t)
    data['targets'] = t
+   data['t0'] = res['times'][0].datetime
+   data['t1'] = res['times'][-1].datetime
 
    return data
 

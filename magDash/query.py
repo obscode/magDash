@@ -41,12 +41,22 @@ Q_names = ['ID','SN','type','RA','DE','zc','zcmb','zvrb','dmag','host',
 def qData(queue='QSWO'):
    db = pymysql.connect(host=HOST, user=USER, passwd=PASS, db=DB)
    c = db.cursor()
-   c.execute(Q_query.format(queue))
+   N = c.execute(Q_query.format(queue))
    rows = c.fetchall()
    data = {}.fromkeys(Q_names)
    for i,name in enumerate(Q_names):
       data[name] = [row[i] for row in rows]
+
+   # Rename SN to Name, for for generic tool
+   data['Name'] = data['SN']*1
    db.close()
+   if queue=='QWFCCD':
+      data['ID'] = ["1{:02d}".format(i) for i in range(1,N+1)]
+   elif queue=='QFIRE':
+      data['ID'] = ["0{:02d}".format(i) for i in range(1,N+1)]
+   else:
+      data['ID'] = [str(i) for i in range(1,N+1)]
+   data['Tags'] = ["Science" for i in range(1,N+1)]
    return data
 
 @cache
