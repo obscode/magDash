@@ -11,7 +11,7 @@ import datetime
 
 HOST='sql.obs.carnegiescience.edu'
 USER='CSP'
-PASS='H!=75.0'
+PASS=''
 DB='CSP'
 
 def airmass(h):
