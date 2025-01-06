@@ -2,6 +2,8 @@
 
 from astropy.coordinates import SkyCoord
 from astropy import units as u
+from datetime import date
+import numpy as np
 
 raw = [
 ("201","LTTT377","00:41:46.6","-33:39:10"),
@@ -23,24 +25,33 @@ raw = [
 ("217","LTT7987","20:10:57.1","-30:13:03"),
 ("218","LTT9239","22:52:40.9","-20:35:27"),
 ("219","Feige110","23:19:58.3","-05:09:56"),
-("220","LTT9491","23:19:35.2","-17:05:28]")]
+("220","LTT9491","23:19:35.2","-17:05:28")]
 
 def addStandards(data):
    '''Add standards to the data dictionary'''
    for (id,name,ra,dec) in raw:
       coord = SkyCoord(ra,dec, unit=(u.hourangle, u.degree))
+      RA = coord.ra.to('hourangle').value
+      DE = coord.dec.to('degree').value
+      idx = np.searchsorted(data['RA'], RA)
+
       for key in data:
          if key == 'RA':
-            data[key].append(coord.ra.to('hourangle').value)
+            data[key].insert(idx, RA)
          elif key == 'DEC':
-            data[key].append(coord.dec.to('degree').value)
+            data[key].insert(idx, DE)
          elif key == 'ID':
-            data[key].append(id)
+            data[key].insert(idx,id)
          elif key == "Name":
-            data[key].append(name)
-         elif key == "Tags":
-            data[key].append("Standard")
+            data[key].insert(idx, name)
+         elif key == "comm":
+            data[key].insert(idx,"Standard")
          else:
-            data[key].append(data[key][-1]*0)
+            if data[key][-1] is None:
+               data[key].insert(idx, None)
+            elif isinstance(data[key][-1], date):
+               data[key].insert(idx,date(2024,1,1))
+            else:
+               data[key].insert(idx,data[key][-1]*0)
 
 
