@@ -6,6 +6,7 @@ from astropy import units as u
 from astroplan import Observer, FixedTarget
 from astropy.time import Time
 import numpy as np
+from OptStandards import addStandards
 from functools import cache
 import datetime
 
@@ -56,7 +57,10 @@ def qData(queue='QSWO'):
       data['ID'] = ["0{:02d}".format(i) for i in range(1,N+1)]
    else:
       data['ID'] = [str(i) for i in range(1,N+1)]
-   data['Tags'] = ["Science" for i in range(1,N+1)]
+   data['comm'] = ["Science" for i in range(1,N+1)]
+
+   if queue=='QWFCCD':
+      addStandards(data)
    return data
 
 @cache
