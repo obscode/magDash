@@ -2,8 +2,10 @@
 
 from .query import qData
 from bokeh.models import (RangeSlider, Slider, Select, CheckboxButtonGroup,
-                          MultiChoice, ColumnDataSource, FileInput)
-from bokeh.models.filters import BooleanFilter
+                          MultiChoice, ColumnDataSource, FileInput,
+                          TableColumn, NumberFormatter, DataTable,
+                          HTMLTemplateFormatter,CDSView)
+from bokeh.models.filters import BooleanFilter,AllIndices
 import base64
 from astropy.coordinates import SkyCoord
 from astropy import units as u
@@ -21,7 +23,18 @@ def readMagCat(input):
    for line in lines:
       line = line.decode("utf-8")
       if len(line) == 0 or line[0] == "#": continue
-      fs = line.split()
+      
+      # check of end comment (which may have spaces)
+      fs = line.split('#')
+      if len(fs) == 1:
+         data['comm'].append('')
+      elif len(fs) == 2:
+         data['comm'].append(fs[1])
+      else:
+         # '#' includded in comment
+         data['comm'].append('#'.join(fs[1:]))
+
+      fs = fs[0].split()
       for i in range(len(fs)):
          field = fields[i]
          if field in ['equinox','pmRA','pmDEC','rotoff','gp1equ','gp2equ',
@@ -36,13 +49,6 @@ def readMagCat(input):
       if len(fs) == 15:    # No epoch given... assume 0.0
          data['obsEpoch'].append(0.0)
       
-      # If anything is left after a '#', add as a comment
-      fs = line.split('#')
-      if len(fs) > 1:
-         data['comm'].append('#'.join(fs[1:]))
-      else:
-         data['comm'].append('')
-
    return data
 
 
@@ -74,7 +80,7 @@ class ObjectData:
       self.minAirmass = Slider(start=1, end=5, step=0.1, value=5,
                                title="Minimum Airmass")
       self.tagSelector = MultiChoice(value=[], options=[], title="Tags",
-                                     visible=False)
+                                     visible=False, min_width=200)
       self.minAirmass.on_change('value_throttled', self.updateFilter)
       self.ageSlider = RangeSlider(start=0, end=100, value=(0,100), step=1., 
                                    title="Age", visible=False)
@@ -95,12 +101,20 @@ class ObjectData:
          RA = [],
          DE = [],
          ID = [],
+         AM = [],
          Name = [],
          comm = []
       )
       self.data = computeNightQuantities(self.data)
       self.now = computeCurrentQuantities(self.data['targets'])
+      self.source = None
       self.makeDataSource()
+      self.Nameformatter = HTMLTemplateFormatter(template=\
+         '<strong> <%= value %> </strong>')
+      self.view = CDSView(filter=AllIndices(), source=self.source)
+
+      self.table = None
+      self.AMfig = None
 
    def updateDataSource(self, attr, old, new):
       if new in self.QSTRS:
@@ -110,24 +124,26 @@ class ObjectData:
          self.campSelect.visible = True
          self.prioritySelect.visible = True
          self.data = qData(self.QSTRS[new])
-         print(self.data)
          self.data = computeNightQuantities(self.data)
          self.now = computeCurrentQuantities(self.data['targets']) 
          self.makeDataSource()
+         self.table.columns[1].formatter = HTMLTemplateFormatter(template=\
+         '<a href="https://csp.lco.cl/sn/sn.php?sn=<%= value %>" '\
+         'target="_SN"><%= value %></a>')
       else:
          self.magellanCatalog.visible = True
          self.ageSlider.visible = False
          self.campSelect.visible = False
          self.prioritySelect.visible = False
+         self.table.columns[1].formatter = HTMLTemplateFormatter(template=\
+         '<strong> <%= value %> </strong>')
 
    def updateFilterRA(self, attr, old, new):
-      RAs = self.source.data['RA']
-      bools = []
-      for i,RA in enumerate(RAs):
-         bools.append(self.filter.booleans[i] and (\
-            self.RArange.value[0] <= RA <= self.RArange.value[1])
-         )
-      self.filter.booleans = bools
+      bools = [self.RArange.value[0] <= RA <= self.RArange.value[1] \
+               for RA in self.source.data['RA']]
+      self.view.filter &= BooleanFilter(booleans=bools)
+      print(self.view.filter)
+      print(self.table.view.filter)
 
    def updateFilter(self, attr, old, new):
       pass
@@ -137,26 +153,55 @@ class ObjectData:
       if self.data is None:
          return
       dts = [t.datetime for t in self.data['times']]
-      self.source = ColumnDataSource(dict(
-         times=[dts for x in self.data['AM']],
-         AMs = [list(x) for x in self.data['AM']],
-         alts = [list(x) for x in self.data['alt']],
-         Name = self.data['Name'],
-         RA = self.data['RA'],
-         DE = self.data['DE'],
-         HA = self.now['HA'],
-         Tags = self.data['comm']
-      ))
+      d = dict(times=[dts for x in self.data['AM']],
+               AMs = [list(x) for x in self.data['AM']],
+               AM = self.data['AM'],
+               alts = [list(x) for x in self.data['alt']],
+               Name = self.data['Name'],
+               RA = self.data['RA'],
+               DE = self.data['DE'],
+               ID = self.data['ID'],
+               HA = self.now['HA'],
+               Tags = self.data['comm']
+         )
+      if self.source is not None:
+         self.source.data = d
+      else:
+         self.source = ColumnDataSource(d)
+      self.source.selected.on_change('indices', self.onSelectChange)
+      #self.view = CDSView(filter=AllIndices(), source=self.source)
+
       tags = list(set([tag for tag in self.data['comm'] if tag]))
       if len(tags) > 0:
          self.tagSelector.options = tags
          self.tagSelector.visible = True
       else:
          self.tagSelector.visible = False
+   def onSelectChange(self, attr, old, new):
+      print(attr, old, new)
 
    def uploadCatalog(self, attr, old, new):
       self.data = readMagCat(base64.b64decode(new))
       self.data = computeNightQuantities(self.data)
       self.now = computeCurrentQuantities(self.data['targets'])
       self.makeDataSource()
+      self.table.source = self.source
 
+   def makeTable(self):
+
+      columns = [
+      TableColumn(field="ID", title="ID", width=10),
+      TableColumn(field="Name", title="Name", formatter=self.Nameformatter),
+      TableColumn(field="HA", title="Hour Ang", 
+               formatter=NumberFormatter(format='0.00'), width=100),
+      TableColumn(field="RA", title="RA", 
+               formatter=NumberFormatter(format='0.00000'),
+               visible=False),
+      TableColumn(field="DE", title="DEC", 
+               formatter=NumberFormatter(format='0.00000'), visible=False),
+      TableColumn(field="AM", title="Airm", 
+               formatter=NumberFormatter(format='0.00'),width=100)]
+      self.table = DataTable(source=self.source, view=self.view,
+                  columns=columns, selectable="checkbox",width=400, 
+                  index_position=None, scroll_to_selection=False)
+      return(self.table)

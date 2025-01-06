@@ -29,6 +29,7 @@ def Update():
    UT.label = "UT: "+data.now['UT']
    ST.label = "ST: "+data.now['ST']
    data.source.data['HA'] = data.now['HA']
+   data.source.data['AM'] = data.now['AM']
 
    AMvline.location = data.now['now'].datetime
 
@@ -42,20 +43,11 @@ def updateDataSource(attr,old,new):
 UT = Button(label="UT: "+data.now['UT'], stylesheets=[infoBtn_css])
 ST = Button(label="ST: "+data.now['ST'], stylesheets=[infoBtn_css])
 
-columns = [
-   TableColumn(field="Name", title="Name"),
-   TableColumn(field="HA", title="Hour Ang", 
-               formatter=NumberFormatter(format='0.00')),
-   TableColumn(field="RA", title="RA", 
-               formatter=NumberFormatter(format='0.00000')),
-   TableColumn(field="DE", title="DEC", 
-               formatter=NumberFormatter(format='0.00000'))
-]
-table = DataTable(source=data.source, columns=columns, 
-                  selectable="checkbox",width=400)
+table = data.makeTable()
+print(table.columns)
 
 # ---------------- AIRMASS PLOT
-AMtoolTips = [("SN","@SN")]
+AMtoolTips = [("Name","@Name")]
 
 AMfig = figure(width=500, height=400, x_axis_type='datetime',
                x_axis_label='UTC', y_axis_label="Altitude")
@@ -94,7 +86,7 @@ curdoc().add_root(layout(
    [[data.dataSource,data.magellanCatalog],
     [UT,ST],
     [table,AMfig,column(
-      data.RArange,data.DECrange,data.minAirmass,
+      data.RArange,data.DECrange,data.minAirmass,data.tagSelector,
       data.ageSlider,data.campSelect,data.prioritySelect)
     ]
    ]
