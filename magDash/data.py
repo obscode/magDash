@@ -91,7 +91,7 @@ class ObjectData:
       self.DECrange = RangeSlider(start=-90, end=90, value=(-90,90), step=0.5, 
                                   title='DEC')
       self.DECrange.on_change('value_throttled', self.updateViewFilter)
-      self.minAirmass = Slider(start=1, end=5, step=0.1, value=5,
+      self.minAirmass = Slider(start=1, end=3, step=0.02, value=3,
                                title="Minimum Airmass")
       self.tagSelector = MultiChoice(value=[], options=[], title="Tags",
                                      visible=False, min_width=200)
@@ -105,7 +105,7 @@ class ObjectData:
                                     title='Campaigns', visible=False)
       self.campSelect.on_change('value', self.updateViewFilter)
       self.prioritySelect = CheckboxButtonGroup(active=[], 
-                           labels = self.PRIORITY_OPTIONS, visible=False)
+         labels = self.PRIORITY_OPTIONS, visible=False)
       self.prioritySelect.on_change('active', self.updateViewFilter)
 
       # -----  The initial DataColumnSource with no objects
@@ -151,8 +151,8 @@ class ObjectData:
          (data['RA'] <= self.RArange.value[1])
       bools &= ((data['DE'] >= self.DECrange.value[0]) & \
          (data['DE'] <= self.DECrange.value[1]))
-      if self.minAirmass.value < 5:
-         bools &= np.array([AMs.min() > self.minAirmass.value \
+      if self.minAirmass.value < 3:
+         bools &= np.array([AMs.min() < self.minAirmass.value \
                             for AMs in data['AMs']]) 
       if self.ageSlider.visible:
          bools &= ((data['age'] >= self.ageSlider.value[0]) &\
@@ -164,14 +164,12 @@ class ObjectData:
          bools &= np.array([tag in self.campSelect.value \
                             for tag in data['camp']])
       if self.prioritySelect.visible and self.prioritySelect.active:
-         selected_priorities = [self._priorities[idx] \
+         selected_priorities = [self.PRIORITY_OPTIONS[idx] \
                                 for idx in self.prioritySelect.active]
          bools &= np.array([tag in selected_priorities \
                             for tag in data['priority']])
       
       self.view.filter = BooleanFilter(booleans=bools)
-      #print(self.view.filter)
-      #print(self.table.view.filter)
 
    def makeDataSource(self):
       '''Given the current data, create the ColumnDataSource'''
@@ -196,19 +194,17 @@ class ObjectData:
          self.campSelect.options = list(set(self.data['camp']))
       if 'priority' in self.data:
          d['priority'] = self.data['priority']
-         self.prioritySelect.labels = [priority \
-                                       for priority in self.PRIORITY_OPTIONS \
-                                       if priority in self.data['priority']]
-         self.prioritySelect.active = []
+         #self.prioritySelect.labels = [priority \
+         #                              for priority in self.PRIORITY_OPTIONS \
+         #                              if priority in self.data['priority']]
+         #self.prioritySelect.active = [0]*len(self.prioritySelect.labels)
       if 'agerdate' in self.data:
-         d['age'] = self.now['now'].jd - np.array(self.data['agerdate'])
-         print(d['age'])
-         print(d['age'].min(), d['age'].max())
+         epoch = np.array(self.data['agerdate'])
+         d['age'] = np.where(epoch > 1.0, self.now['now'].jd - epoch, 0.0)
          self.ageSlider.start = d['age'].min()-1
          self.ageSlider.end = d['age'].max()+1
          self.ageSlider.step = (self.ageSlider.end-self.ageSlider.start)/100
          self.ageSlider.value = (self.ageSlider.start, self.ageSlider.end)
-         print(self.ageSlider.start,self.ageSlider.end,self.ageSlider.step)
          
       if self.source is not None:
          self.source.data = d
@@ -224,20 +220,17 @@ class ObjectData:
       else:
          self.tagSelector.visible = False
 
-   def onSelectChange(self, attr, old, new):
-      print(attr, old, new)
-
    def fetchQueue(self):
       query.PASS = self.CSPpasswd.value
-      try:
-         self.data = query.qData(self.QSTRS[self.dataSource.value])
-         self.dataSourceMessage.text = "<font color='darkgreen'>"\
-            "Retreived {} targets</font>".format(self.data['N'])
-         self.dataSourceMessage.visible = True
-      except:
-         self.dataSourceMessage.text = "<font color='red'>Query failed</font>"
-         self.dataSourceMessage.visible = True
-         return
+      #try:
+      self.data = query.qData(self.QSTRS[self.dataSource.value])
+      self.dataSourceMessage.text = "<font color='darkgreen'>"\
+         "Retreived {} targets</font>".format(self.data['N'])
+      self.dataSourceMessage.visible = True
+      #except:
+      #   self.dataSourceMessage.text = "<font color='red'>Query failed</font>"
+      #   self.dataSourceMessage.visible = True
+      #   return
 
          # Some kind of error
          #return

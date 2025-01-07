@@ -38,7 +38,7 @@ where sn_id=%s and type="priority"
 order by time desc limit 1'''
 
 
-Q_names = ['ID','SN','type','RA','DE','zc','zcmb','zvrb','dmag','host',
+Q_names = ['SNID','SN','type','RA','DE','zc','zcmb','zvrb','dmag','host',
    'offew','offns','gtype','comm','survey','active','camp','agerdate',
    'datemeans','name_iau','name_psn','guider','nstd','qswo','qfire','qrc',
    'qwfccd','name_csp','qc0','inot','qalfosc','qnotcam','qlcogt','qfsu',
@@ -66,7 +66,6 @@ def qData(queue='QSWO'):
    N = c.execute(Q_query.format(queue))
    rows = c.fetchall()
    data = {}.fromkeys(Q_names)
-   data['N'] = N
    for i,name in enumerate(Q_names):
       data[name] = [row[i] for row in rows]
 
@@ -83,9 +82,9 @@ def qData(queue='QSWO'):
    data['camp'] = [camp_str(camp) for camp in data['camp']]
 
    priorities = []
-   for SN in data['Name']:
-      N = c.execute(priority_query, (SN,))
-      if N == 1:
+   for SN in data['SNID']:
+      NN = c.execute(priority_query, (SN,))
+      if NN == 1:
          priorities.append(c.fetchone()[0])
       else:
          priorities.append("Unknown")
@@ -94,6 +93,7 @@ def qData(queue='QSWO'):
    if queue=='QWFCCD':
       addStandards(data)
    db.close()
+   data['N'] = N
 
    return data
 

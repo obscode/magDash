@@ -88,7 +88,8 @@ curdoc().add_root(layout(
     [UT,ST],
     [table,AMfig,column(
       data.RArange,data.DECrange,data.minAirmass,data.tagSelector,
-      data.ageSlider,data.campSelect,data.prioritySelect)
+      data.campSelect,data.prioritySelect)
+      #data.ageSlider,data.campSelect,data.prioritySelect)
     ]
    ]
 ))
