@@ -135,6 +135,9 @@ class ObjectData:
          self.CSPpasswd.visible = True
          self.CSPSubmit.visible = True
          self.magellanCatalog.visible = False
+         if query.PASS:
+            self.CSPpasswd.value = query.PASS
+            self.fetchQueue()
       else:
          self.CSPpasswd.visible = False
          self.CSPSubmit.visible = False
@@ -220,19 +223,17 @@ class ObjectData:
          self.tagSelector.visible = False
 
    def fetchQueue(self):
-      query.PASS = self.CSPpasswd.value
-      #try:
-      self.data = query.qData(self.QSTRS[self.dataSource.value])
-      self.dataSourceMessage.text = "<font color='darkgreen'>"\
-         "Retreived {} targets</font>".format(self.data['N'])
-      self.dataSourceMessage.visible = True
-      #except:
-      #   self.dataSourceMessage.text = "<font color='red'>Query failed</font>"
-      #   self.dataSourceMessage.visible = True
-      #   return
+      query.PASS= self.CSPpasswd.value
+      try:
+         self.data = query.qData(self.QSTRS[self.dataSource.value])
+         self.dataSourceMessage.text = "<font color='darkgreen'>"\
+            "Retreived {} targets</font>".format(self.data['N'])
+         self.dataSourceMessage.visible = True
+      except:
+         self.dataSourceMessage.text = "<font color='red'>Query failed</font>"
+         self.dataSourceMessage.visible = True
+         return
 
-         # Some kind of error
-         #return
       self.ageSlider.visible = True
       self.campSelect.visible = True
       self.prioritySelect.visible = True

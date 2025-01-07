@@ -9,10 +9,14 @@ import numpy as np
 from OptStandards import addStandards
 from functools import cache
 import datetime
+import os
 
 HOST='sql.obs.carnegiescience.edu'
 USER='CSP'
 PASS=''
+if 'CSPpasswd' in os.environ:
+   PASS = os.environ['CSPpasswd']
+
 DB='CSP'
 
 def airmass(h):
