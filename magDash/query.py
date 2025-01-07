@@ -32,11 +32,32 @@ select t0.*,t2.mag,t2.night,t2.jd
            t0.NAME_PSN=t2.field) 
 WHERE ACTIVE = "1" and {} = "1" ORDER BY RA'''
 
+priority_query = '''
+select text from comments 
+where sn_id=%s and type="priority" 
+order by time desc limit 1'''
+
+
 Q_names = ['ID','SN','type','RA','DE','zc','zcmb','zvrb','dmag','host',
    'offew','offns','gtype','comm','survey','active','camp','agerdate',
    'datemeans','name_iau','name_psn','guider','nstd','qswo','qfire','qrc',
    'qwfccd','name_csp','qc0','inot','qalfosc','qnotcam','qlcogt','qfsu',
    'qlmc','mag','night','jd']
+
+CAMPS = ['2004/2005','2005/2006','2006/2007','2007/2008','2008/2009',
+         '2011/2012','2012/2013','2013/2014','2014/2015','2015/2016',
+         '2016/2017','2017/2018','2018/2019','2019/2020']
+
+def camp_str(camp):
+   '''Convert campaign integer into campaign string'''
+   idx = camp-1   # database counts from 1
+   if idx > len(CAMPS)-1:
+      year = 2014+idx//2
+      semester = ["A","B"][idx%2]
+      return "{:d}{:s}".format(year,semester)
+   else:
+      return CAMPS[idx]
+
 
 @cache
 def qData(queue='QSWO'):
@@ -50,17 +71,29 @@ def qData(queue='QSWO'):
 
    # Rename SN to Name, for for generic tool
    data['Name'] = data['SN']*1
-   db.close()
    if queue=='QWFCCD':
       data['ID'] = ["1{:02d}".format(i) for i in range(1,N+1)]
    elif queue=='QFIRE':
       data['ID'] = ["0{:02d}".format(i) for i in range(1,N+1)]
    else:
       data['ID'] = [str(i) for i in range(1,N+1)]
-   data['comm'] = ["Science" for i in range(1,N+1)]
+   data['comm'] = [typ if typ else "unknown" for typ in data['type']]
+   # Convert to strings
+   data['camp'] = [camp_str(camp) for camp in data['camp']]
+
+   priorities = []
+   for SN in data['Name']:
+      N = c.execute(priority_query, (SN,))
+      if N == 1:
+         priorities.append(c.fetchone()[0])
+      else:
+         priorities.append("Unknown")
+   data['priority'] = priorities
 
    if queue=='QWFCCD':
       addStandards(data)
+   db.close()
+
    return data
 
 @cache

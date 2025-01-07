@@ -74,7 +74,8 @@ ax2 = LinearAxis(y_range_name="AM", ticker=FixedTicker(ticks=tickloc),
 ax2.major_label_overrides = {10:"5.76", 20:"2.92", 30:"2.20", 40:"1.56", 50:"1.31",
                              60:"1.15", 70:"1.06", 80:"1.02", 90:"1.00"}
 AMfig.add_layout(ax2, 'right')
-AMml = AMfig.multi_line(xs="times", ys="alts", source=data.source, hover_color='red')
+AMml = AMfig.multi_line(xs="times", ys="alts", source=data.source, 
+                        hover_color='red', view=data.view)
 AMvline = Span(location=data.now['now'].datetime, dimension='height', line_color='red', 
              line_width=3)
 AMfig.add_layout(AMvline)
@@ -83,7 +84,7 @@ AMhvr.renderers = [AMml]
 
 
 curdoc().add_root(layout(
-   [[data.dataSource,data.magellanCatalog],
+   [[data.dataSource,data.magellanCatalog,data.CSPpasswd,data.CSPSubmit],
     [UT,ST],
     [table,AMfig,column(
       data.RArange,data.DECrange,data.minAirmass,data.tagSelector,

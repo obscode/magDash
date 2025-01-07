@@ -38,7 +38,7 @@ def addStandards(data):
       for key in data:
          if key == 'RA':
             data[key].insert(idx, RA)
-         elif key == 'DEC':
+         elif key == 'DE':
             data[key].insert(idx, DE)
          elif key == 'ID':
             data[key].insert(idx,id)
