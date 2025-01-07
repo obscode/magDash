@@ -164,7 +164,7 @@ class ObjectData:
          bools &= np.array([tag in self.campSelect.value \
                             for tag in data['camp']])
       if self.prioritySelect.visible and self.prioritySelect.active:
-         selected_priorities = [self.PRIORITY_OPTIONS[idx] \
+         selected_priorities = [self.prioritySelect.labels[idx] \
                                 for idx in self.prioritySelect.active]
          bools &= np.array([tag in selected_priorities \
                             for tag in data['priority']])
@@ -194,10 +194,9 @@ class ObjectData:
          self.campSelect.options = list(set(self.data['camp']))
       if 'priority' in self.data:
          d['priority'] = self.data['priority']
-         #self.prioritySelect.labels = [priority \
-         #                              for priority in self.PRIORITY_OPTIONS \
-         #                              if priority in self.data['priority']]
-         #self.prioritySelect.active = [0]*len(self.prioritySelect.labels)
+         self.prioritySelect.labels = [priority \
+                                       for priority in self.PRIORITY_OPTIONS \
+                                       if priority in self.data['priority']]
       if 'agerdate' in self.data:
          epoch = np.array(self.data['agerdate'])
          d['age'] = np.where(epoch > 1.0, self.now['now'].jd - epoch, 0.0)
@@ -210,7 +209,7 @@ class ObjectData:
          self.source.data = d
       else:
          self.source = ColumnDataSource(d)
-      self.source.selected.on_change('indices', self.onSelectChange)
+      #self.source.selected.on_change('indices', self.onSelectChange)
       #self.view = CDSView(filter=AllIndices(), source=self.source)
 
       tags = list(set([tag for tag in self.data['comm'] if tag]))
