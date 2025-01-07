@@ -66,6 +66,7 @@ def qData(queue='QSWO'):
    N = c.execute(Q_query.format(queue))
    rows = c.fetchall()
    data = {}.fromkeys(Q_names)
+   data['N'] = N
    for i,name in enumerate(Q_names):
       data[name] = [row[i] for row in rows]
 

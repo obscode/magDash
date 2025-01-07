@@ -44,7 +44,6 @@ UT = Button(label="UT: "+data.now['UT'], stylesheets=[infoBtn_css])
 ST = Button(label="ST: "+data.now['ST'], stylesheets=[infoBtn_css])
 
 table = data.makeTable()
-print(table.columns)
 
 # ---------------- AIRMASS PLOT
 AMtoolTips = [("Name","@Name")]
@@ -84,7 +83,8 @@ AMhvr.renderers = [AMml]
 
 
 curdoc().add_root(layout(
-   [[data.dataSource,data.magellanCatalog,data.CSPpasswd,data.CSPSubmit],
+   [[data.dataSource,data.magellanCatalog,data.CSPpasswd,data.CSPSubmit,
+        data.dataSourceMessage],
     [UT,ST],
     [table,AMfig,column(
       data.RArange,data.DECrange,data.minAirmass,data.tagSelector,

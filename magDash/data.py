@@ -4,7 +4,8 @@ from . import query
 from bokeh.models import (RangeSlider, Slider, Select, CheckboxButtonGroup,
                           MultiChoice, ColumnDataSource, FileInput,
                           TableColumn, NumberFormatter, DataTable,
-                          HTMLTemplateFormatter,CDSView,PasswordInput,Button)
+                          HTMLTemplateFormatter,CDSView,PasswordInput,Button,
+                          Div)
 from bokeh.models.filters import BooleanFilter,AllIndices
 import base64
 from astropy.coordinates import SkyCoord
@@ -20,10 +21,12 @@ def readMagCat(input):
    data = {}.fromkeys(fields)
    for field in fields:  data[field] = []
    lines = input.split(b'\n')
+   N = 0
    for line in lines:
       line = line.decode("utf-8")
       if len(line) == 0 or line[0] == "#": continue
       
+      N += 1
       # check of end comment (which may have spaces)
       fs = line.split('#')
       if len(fs) == 1:
@@ -48,6 +51,7 @@ def readMagCat(input):
       data['DE'][-1] = coord.dec.to('degree').value
       if len(fs) == 15:    # No epoch given... assume 0.0
          data['obsEpoch'].append(0.0)
+   data['N'] = N
       
    return data
 
@@ -75,6 +79,8 @@ class ObjectData:
       self.CSPSubmit = Button(label="Get Data", visible=False,
                               margin=(25,5,5,5))
       self.CSPSubmit.on_click(self.fetchQueue)
+      self.dataSourceMessage = Div(text="N/A", width=200, margin=(25,5,5,5),
+                                   visible=False)
 
       self.filter = BooleanFilter(booleans=[])
       
@@ -123,6 +129,7 @@ class ObjectData:
       self.AMfig = None
 
    def updateDataSource(self, attr, old, new):
+      self.dataSourceMessage.visible = False # reset
       if new in self.QSTRS:
          # POSIE data from SQL and has more filters
          self.CSPpasswd.visible = True
@@ -222,9 +229,18 @@ class ObjectData:
 
    def fetchQueue(self):
       query.PASS = self.CSPpasswd.value
-      self.data = query.qData(self.QSTRS[self.dataSource.value])
-      # Some kind of error
-      #return
+      try:
+         self.data = query.qData(self.QSTRS[self.dataSource.value])
+         self.dataSourceMessage.text = "<font color='darkgreen'>"\
+            "Retreived {} targets</font>".format(self.data['N'])
+         self.dataSourceMessage.visible = True
+      except:
+         self.dataSourceMessage.text = "<font color='red'>Query failed</font>"
+         self.dataSourceMessage.visible = True
+         return
+
+         # Some kind of error
+         #return
       self.ageSlider.visible = True
       self.campSelect.visible = True
       self.prioritySelect.visible = True
@@ -236,7 +252,15 @@ class ObjectData:
          'target="_SN"><%= value %></a>')
 
    def uploadCatalog(self, attr, old, new):
-      self.data = readMagCat(base64.b64decode(new))
+      try:
+         self.data = readMagCat(base64.b64decode(new))
+         self.dataSourceMessage.text = "<font color='darkgreen'>"\
+            "Uploaded {} targets</font>".format(self.data['N'])
+         self.dataSourceMessage.visible = True
+      except:
+         self.dataSourceMessage.text = "<font color='red'>Upload failed</font>"
+         self.dataSourceMessage.visible = True
+         return
       self.data = computeNightQuantities(self.data)
       self.now = computeCurrentQuantities(self.data['targets'])
       self.makeDataSource()
