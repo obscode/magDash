@@ -21,6 +21,7 @@ dependencies = [
     "astropy",
     "bokeh",
     "pymysql",
+    "astroplan",
     "beautifulsoup4"
 ]
 
