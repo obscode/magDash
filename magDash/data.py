@@ -32,7 +32,7 @@ def readMagCat(input):
       if len(fs) == 1:
          data['comm'].append('')
       elif len(fs) == 2:
-         data['comm'].append(fs[1])
+         data['comm'].append(fs[1].strip())
       else:
          # '#' includded in comment
          data['comm'].append('#'.join(fs[1:]))
