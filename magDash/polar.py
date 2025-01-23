@@ -10,8 +10,6 @@ const t = s.data.%s
 let th = 0
 for (let i = 0 ; i < xs.length ; ++i) {
    th = t[i] - t0
-   //if (th < 0) th = th + 2*Math.Pi
-   //if (th > 2*Math.Pi) th = th - 2*Math.Pi
    res[i] = r[i]*Math.cos(th)/rmax
 }
 return res
@@ -24,8 +22,6 @@ const t = s.data.%s
 let th = 0
 for (let i = 0 ; i < xs.length ; ++i) {
    th = t[i] - t0
-   //if (th < 0) th += 2*Math.Pi
-   //if (th > 2*Math.Pi) th -= 2*Math.Pi
    res[i] = r[i]*Math.sin(th)/rmax
 }
 return res
