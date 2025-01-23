@@ -40,6 +40,7 @@ def updateDataSource(attr,old,new):
 
 # ---------------- STATUS FIELDS
 #UT = Div(text="{}".format(now['UT']), height=50)
+LT = Button(label="LT: "+data.now['LT'], stylesheets=[infoBtn_css])
 UT = Button(label="UT: "+data.now['UT'], stylesheets=[infoBtn_css])
 ST = Button(label="ST: "+data.now['ST'], stylesheets=[infoBtn_css])
 
@@ -85,7 +86,7 @@ AMhvr.renderers = [AMml]
 curdoc().add_root(layout(
    [[data.dataSource,data.magellanCatalog,data.CSPpasswd,data.CSPSubmit,
         data.dataSourceMessage],
-    [UT,ST],
+    [LT,UT,ST],
     [table,AMfig,column(
       data.RArange,data.DECrange,data.minAirmass,data.tagSelector,
       data.campSelect,data.prioritySelect)

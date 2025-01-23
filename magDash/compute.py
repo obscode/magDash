@@ -6,6 +6,10 @@ from astropy import units as u
 from astropy.coordinates import SkyCoord
 import datetime
 import numpy as np
+from zoneinfo import ZoneInfo
+
+utc_tz = ZoneInfo("UTC")
+loc_tz = ZoneInfo("America/Santiago")
 
 def airmass(h):
    '''Compute airmass from Pickering (2002) given altitude angle h
@@ -115,8 +119,11 @@ def computeCurrentQuantities(targets, date=None, location='LCO'):
    res['az'] = aa.az.to('degree').value
    res['AM'] = airmass(aa.alt.to('degree').value)
    res['HA'] = (targets.ra - obs.local_sidereal_time(date)).to('hourangle').value
-
-   res['UT'] = date.datetime.strftime("%H:%M:%S")
+   dt = date.datetime.replace(tzinfo=utc_tz)
+   dt2 = dt.astimezone(loc_tz)
+   res['UT'] = dt.strftime("%H:%M:%S")
+   res['LC'] = dt2.strftime("%H:%M:%S")
+   dt = date.datetime.copy
    res['ST'] = obs.local_sidereal_time(date).to_string(precision=0, sep=':')
    res['now'] = date
    return(res)
