@@ -1,12 +1,12 @@
 from bokeh.layouts import layout,column
 from bokeh.plotting import figure,curdoc
-from .query import qData
+from .query import qData, getLCOsky
 from .data import ObjectData
 from .compute import computeNightQuantities,computeCurrentQuantities
+from .plot_skyview_bokeh import SkyMap
 from bokeh.plotting import figure
-from bokeh.models import DataTable, Range1d, TableColumn, NumberFormatter,\
-                         ColumnDataSource, Button, Div, LinearAxis, Span,\
-                         HoverTool, MultiChoice, RangeSlider, CheckboxButtonGroup
+from bokeh.models import Range1d, Button, LinearAxis, Span,\
+                         HoverTool, TabPanel, Tabs
 from bokeh.models.css import InlineStyleSheet
 from bokeh.models.tickers import FixedTicker
 
@@ -58,8 +58,6 @@ AMfig.add_tools(AMhvr)
 AMfig.extra_y_ranges = {"AM": Range1d(start=10, end=90)}
 AMfig.varea(x=[data.data['t0'],data.data['ss'].datetime],y1=[0,0], y2=[100,100], 
             fill_color="black", fill_alpha=0.5)
-print(data.data['t0'],data.data['ss'].datetime,data.data['te'].datetime)
-print(data.data['tb'].datetime,data.data['sr'].datetime,data.data['t1'])
 AMfig.varea(x=[data.data['ss'].datetime,data.data['te'].datetime],y1=[0,0], 
             y2=[100,100], fill_color="black", fill_alpha=0.25)
 AMfig.varea(x=[data.data['tb'].datetime,data.data['sr'].datetime],y1=[0,0], 
@@ -81,17 +79,30 @@ AMvline = Span(location=data.now['now'].datetime, dimension='height', line_color
 AMfig.add_layout(AMvline)
 AMhvr.renderers = [AMml]
 
+skyplot = SkyMap(imsize=500)
+skyplot.conLines()
+img = getLCOsky()
+skyplot.fig.figure.image_rgba(image=[img], x=-1.033, y=-1.028, dw=2.06, dh=2.06,
+                              level='image')
+#skyplot.plotTargets(data.source, 'alt','az')
+
+tabs = Tabs(tabs=[
+   TabPanel(child=AMfig, title='Airmass'),
+   TabPanel(child=skyplot.fig.figure, title='Sky')
+])
+
 
 
 curdoc().add_root(layout(
    [[data.dataSource,data.magellanCatalog,data.CSPpasswd,data.CSPSubmit,
         data.dataSourceMessage],
     [LT,UT,ST],
-    [table,AMfig,column(
+    [table,tabs,column(
       data.RArange,data.DECrange,data.minAirmass,data.tagSelector,
       data.campSelect,data.prioritySelect)
       #data.ageSlider,data.campSelect,data.prioritySelect)
-    ]
+    ],
+    #[skyplot.fig.figure]
    ]
 ))
 curdoc().add_periodic_callback(Update, 1000)

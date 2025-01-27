@@ -1,4 +1,10 @@
-'''Query functions to get data.'''
+'''Query functions to get data:
+  - SQL queries form CSP/POISE databases
+  - Image query of LCO sky
+  - HTML queris form sam.lco.cl for telescope info
+    (requires VPN)
+'''
+
 import pymysql
 from bokeh.models import ColumnDataSource
 from astropy.coordinates import SkyCoord
@@ -10,6 +16,8 @@ from OptStandards import addStandards
 from functools import cache
 import datetime
 import os
+import requests
+from PIL import Image
 
 HOST='sql.obs.carnegiescience.edu'
 USER='CSP'
@@ -141,3 +149,21 @@ def compute(data, date=None, location='LCO'):
    data['AM'] = airmass(aa.alt.to('degree').value)
 
    return ColumnDataSource(data=data)
+
+def getLCOsky(format='bokeh'):
+   '''Retrieve the LCO all-sky image and return as image arrays
+      formats:  'bokeh' for inclusion in Bokeh plots
+                'numpy' for NxNx4 np arrays'''
+   im = Image.open(requests.get('https://weather.lco.cl/casca/latestred.png', 
+                                stream=True).raw)
+   arr = np.array(im.getdata()).reshape(im.size[0],im.size[1],4)
+   if format=='numpy':  return arr
+
+   # Boheh weird RGBA format
+   img = np.empty((im.size[0],im.size[1]), dtype=np.uint32)
+   view = img.view(dtype=np.uint8).reshape((im.size[0],im.size[1],4))
+   view[:,:,0] = arr[::-1,::,0]
+   view[:,:,1] = arr[::-1,::,1]
+   view[:,:,2] = arr[::-1,::,2]
+   view[:,:,3] = arr[::-1,::,3]
+   return img

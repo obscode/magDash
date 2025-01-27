@@ -9,7 +9,9 @@ const r = s.data.%s
 const t = s.data.%s
 let th = 0
 for (let i = 0 ; i < xs.length ; ++i) {
-   th = t[i] - t0
+   th = fac*(t[i] - t0)
+   if ( th < 0 ) th += 2*Math.PI
+   if ( th > 2*Math.PI) th -= 2*Math.PI
    res[i] = r[i]*Math.cos(th)/rmax
 }
 return res
@@ -21,7 +23,9 @@ const r = s.data.%s
 const t = s.data.%s
 let th = 0
 for (let i = 0 ; i < xs.length ; ++i) {
-   th = t[i] - t0
+   th = fac*(t[i] - t0)
+   if ( th < 0 ) th += 2*Math.PI
+   if ( th > 2*Math.PI) th -= 2*Math.PI
    res[i] = r[i]*Math.sin(th)/rmax
 }
 return res
@@ -98,16 +102,17 @@ class PolarPlot:
       angles_spokes = np.arange(0,self.ntgrid)*np.pi*2/self.ntgrid
       angle_labels = [str(int(round(a*180./np.pi))) for a in angles_spokes]
       t_spokes = self.theta2t(angles_spokes)
-      x_labels,y_labels = self.rt2xy(angles_spokes*0+self.rmax*1.01, 
+      x_labels,y_labels = self.rt2xy(angles_spokes*0+self.rmax*1.03, 
                                      angles_spokes)
       self.figure.text(x_labels, y_labels, angle_labels, angle=-np.pi/2+t_spokes,
          text_font_size="11pt", text_align="center", text_baseline="bottom",
          text_color="gray", level='annotation')
+      #self.figure.scatter(x_labels, y_labels, marker='circle', level='annotation')
 
-   def segment(self, r0, t0, r1, t1, **kwargs):
-      x0,y0 = self.rt2xy(r0,t0)
-      x1,y1 = self.rt2xy(r1,t1)
-      return self.figure.segment(x0,y0,x1,y1, **kwargs)
+   #def segment(self, r0, t0, r1, t1, **kwargs):
+   #   x0,y0 = self.rt2xy(r0,t0)
+   #   x1,y1 = self.rt2xy(r1,t1)
+   #   return self.figure.segment(x0,y0,x1,y1, **kwargs)
    
    def bind_bokeh(self, name):
       def bfunc(r, t, *args, **kwargs):
@@ -120,13 +125,36 @@ class PolarPlot:
             #x,y = self.rt2xy(source.data[r], source.data[t])
             #source.add(x, '_x')
             #source.add(y, '_y')
-            xtrans = CustomJSTransform(args=dict(s=source,rmax=self.rmax,t0=self.theta0),
-                                       v_func=xtransJS % (r,t))
-            ytrans = CustomJSTransform(args=dict(s=source,rmax=self.rmax,t0=self.theta0),v_func=ytransJS % (r,t))
+            xtrans = CustomJSTransform(args=dict(s=source,rmax=self.rmax,t0=self.theta0,
+                                       fac=[1,-1][self.clockwise]), v_func=xtransJS % (r,t))
+            ytrans = CustomJSTransform(args=dict(s=source,rmax=self.rmax,t0=self.theta0,
+                                       fac=[1,-1][self.clockwise]),v_func=ytransJS % (r,t))
             #return f(*(('_x','_y')+args), **kwargs)
             return f(*((transform(r,xtrans),transform(t,ytrans))+args), **kwargs)
          else:
             return f(*(self.rt2xy(r,t)+args), **kwargs)
+      return bfunc
+
+   def bind_bokeh2(self, name):
+      # Special version that has two x's and two y's (e.g., segment)
+      def bfunc(r0, r1, t0, t1, *args, **kwargs):
+         f = getattr(self.figure, name, None)
+         if f is None:
+            raise AttributeError(name)
+         source = kwargs.get('source', None)
+         if source is not None:
+            xtrans0 = CustomJSTransform(args=dict(s=source,rmax=self.rmax,t0=self.theta0,
+                                       fac=[1,-1][self.clockwise]), v_func=xtransJS % (r0,t0))
+            xtrans1 = CustomJSTransform(args=dict(s=source,rmax=self.rmax,t0=self.theta0,
+                                       fac=[1,-1][self.clockwise]), v_func=xtransJS % (r1,t1))
+            ytrans0 = CustomJSTransform(args=dict(s=source,rmax=self.rmax,t0=self.theta0,
+                                       fac=[1,-1][self.clockwise]), v_func=ytransJS % (r0,t0))
+            ytrans1 = CustomJSTransform(args=dict(s=source,rmax=self.rmax,t0=self.theta0,
+                                       fac=[1,-1][self.clockwise]), v_func=ytransJS % (r1,t1))
+            return f(*((transform(r0,xtrans0),transform(t0,ytrans0),
+                        transform(r1,xtrans1),transform(t1,ytrans1))+args), **kwargs)
+         else:
+            return f(*(self.rt2xy(r0,t0)+self.rt2xy(r1,r1)+args), **kwargs)
       return bfunc
 
    def __getattr__(self, key):
@@ -139,6 +167,8 @@ class PolarPlot:
             'scatter','square','square_cross','square_x','text',
             'triangle','wedge','x']:
          return self.bind_bokeh(key)
+      elif key in ['segment']:
+         return self.bind_bokeh2(key)
       elif key in self.figure.__dict__:
          return self.figure.__dict__[key]
       raise AttributeError(key)
