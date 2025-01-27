@@ -122,8 +122,7 @@ def computeCurrentQuantities(targets, date=None, location='LCO'):
    dt = date.datetime.replace(tzinfo=utc_tz)
    dt2 = dt.astimezone(loc_tz)
    res['UT'] = dt.strftime("%H:%M:%S")
-   res['LC'] = dt2.strftime("%H:%M:%S")
-   dt = date.datetime.copy
+   res['LT'] = dt2.strftime("%H:%M:%S")
    res['ST'] = obs.local_sidereal_time(date).to_string(precision=0, sep=':')
    res['now'] = date
    return(res)

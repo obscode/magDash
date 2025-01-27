@@ -28,6 +28,7 @@ def Update():
    data.now = computeCurrentQuantities(data.data['targets'])
    UT.label = "UT: "+data.now['UT']
    ST.label = "ST: "+data.now['ST']
+   LT.label = "LT: "+data.now['LT']
    data.source.data['HA'] = data.now['HA']
    data.source.data['AM'] = data.now['AM']
 
