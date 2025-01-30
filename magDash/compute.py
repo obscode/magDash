@@ -96,7 +96,7 @@ def computeNightQuantities(data, date=None, location='LCO', deltat=5*u.minute):
       data[key] = res[key]
 
    aa = obs.altaz(res['times'], t, grid_times_targets=True)
-   data['alt'] = aa.alt.to('degree').value
+   data['alts'] = aa.alt.to('degree').value
    data['az'] = aa.az.to('degree').value
    data['AM'] = airmass(aa.alt.to('degree').value)
    data['transit'] = obs.target_meridian_transit_time(date, t)
@@ -106,23 +106,38 @@ def computeNightQuantities(data, date=None, location='LCO', deltat=5*u.minute):
 
    return data
 
-def computeCurrentQuantities(targets, date=None, location='LCO'):
+def computeTimes(date=None, location='LCO'):
+   " compute the current times (local, sidereal, utc)"
    obs = Observer.at_site(location)
    if date is None:
       date = Time.now()
    else:
       date = Time(date)
+   dt = date.datetime.replace(tzinfo=utc_tz)
+   dt2 = dt.astimezone(loc_tz)
+   UT = dt.strftime("%H:%M:%S")
+   LT = dt2.strftime("%H:%M:%S")
+   ST = obs.local_sidereal_time(date).to_string(precision=0, sep=':')
+   return(UT,LT,ST)
+
+
+def computeCurrentQuantities(targets, date=None, location='LCO'):
+   if date is None:
+      date = Time.now()
+   else:
+      date = Time(date)
+   obs = Observer.at_site(location)
    res = {}
    
    aa = obs.altaz(date, targets)
    res['alt'] = aa.alt.to('degree').value
    res['az'] = aa.az.to('degree').value
+   res['zang'] = 90 - res['alt']  # zenith angle
    res['AM'] = airmass(aa.alt.to('degree').value)
    res['HA'] = (targets.ra - obs.local_sidereal_time(date)).to('hourangle').value
-   dt = date.datetime.replace(tzinfo=utc_tz)
-   dt2 = dt.astimezone(loc_tz)
-   res['UT'] = dt.strftime("%H:%M:%S")
-   res['LT'] = dt2.strftime("%H:%M:%S")
-   res['ST'] = obs.local_sidereal_time(date).to_string(precision=0, sep=':')
+   UT,LT,ST = computeTimes(date, location)
+   res['UT'] = UT
+   res['LT'] = LT
+   res['ST'] = ST
    res['now'] = date
    return(res)

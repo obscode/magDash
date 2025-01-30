@@ -2,13 +2,15 @@ from bokeh.layouts import layout,column
 from bokeh.plotting import figure,curdoc
 from .query import qData, getLCOsky
 from .data import ObjectData
-from .compute import computeNightQuantities,computeCurrentQuantities
+from .compute import computeCurrentQuantities,computeTimes
 from .plot_skyview_bokeh import SkyMap
 from bokeh.plotting import figure
 from bokeh.models import Range1d, Button, LinearAxis, Span,\
-                         HoverTool, TabPanel, Tabs
+                         HoverTool, TabPanel, Tabs, CustomJS,\
+                         TapTool,ColumnDataSource
 from bokeh.models.css import InlineStyleSheet
 from bokeh.models.tickers import FixedTicker
+import numpy as np
 
 infoBtn_css = InlineStyleSheet(css=\
 '''
@@ -22,21 +24,41 @@ color: #41d849;
 
 data = ObjectData()
 
-def Update():
-   global UT,ST,AMvline,now,data
+def Update1s():
+   # stuff to do each second
+   global UT,ST,LT
 
+   ut,lt,st = computeTimes()
+   UT.label = "UT: "+ut
+   ST.label = "ST: "+st
+   LT.label = "LT: "+lt
+
+
+def Update1m():
+   # stuff to do every minute
+   global data, AMvline, LCOsky, skyplot
    data.now = computeCurrentQuantities(data.data['targets'])
-   UT.label = "UT: "+data.now['UT']
-   ST.label = "ST: "+data.now['ST']
-   LT.label = "LT: "+data.now['LT']
    data.source.data['HA'] = data.now['HA']
    data.source.data['AM'] = data.now['AM']
-
+   data.source.data['zang'] = data.now['zang']
+   data.source.data['az'] = data.now['az']*np.pi/180
+   data.source.data['alt'] = data.now['alt']
    AMvline.location = data.now['now'].datetime
+   img = getLCOsky()
+   LCOsky.data['image'] = [img]
+   skyplot.computeConAltAz()
 
-def updateDataSource(attr,old,new):
-   '''Update the data source based on currently-defined filters'''
-   global RArange,DECrange,campSelect,ageSlider,source
+
+def FilterCallback():
+   global data
+   newbools = np.array([i in data.source.selected.indices for i in \
+                        range(len(data.source.data['Name']))])
+   if not np.any(newbools): return
+   data.view.filter.booleans = data.view.filter.booleans & newbools
+
+def FilterReset():
+   data.source.selected.indices = []
+   data.updateViewFilter("","","")
 
 
 # ---------------- STATUS FIELDS
@@ -82,17 +104,35 @@ AMhvr.renderers = [AMml]
 
 skyplot = SkyMap(imsize=500)
 skyplot.conLines()
+# Plot zenith-angle, since that's how polar plots work
+skyplot.plotTargets(data.source, 'zang', 'az', view=data.view,
+                    marker='star', size=10, color='green',fill_color='lightgreen')
 img = getLCOsky()
-skyplot.fig.figure.image_rgba(image=[img], x=-1.033, y=-1.028, dw=2.06, dh=2.06,
+LCOsky = ColumnDataSource(dict(image=[img]))
+skyplot.fig.figure.image_rgba(image='image',source=LCOsky, x=-1.033, y=-1.028, dw=2.06, dh=2.06,
                               level='image')
 #skyplot.plotTargets(data.source, 'alt','az')
+url = "https://csp.lco.cl/sn/sn.php?sn=@Name"
+tt = skyplot.fig.figure.select(type=TapTool)
+tt.renderers = skyplot.hover.renderers
+tt.callback = CustomJS(args=dict(source=data.source), code='''
+var index = source.selected.indices[0];
+var data = source.data;
+var name = data['Name'][index];
+source.selected.indices = [];
+window.open("https://csp.lco.cl/sn/sn.php?sn="+name,"_SN");
+''')
+
 
 tabs = Tabs(tabs=[
    TabPanel(child=AMfig, title='Airmass'),
    TabPanel(child=skyplot.fig.figure, title='Sky')
 ])
 
-
+FilterButton = Button(label='Filter Selected')
+FilterButton.on_click(FilterCallback)
+FilterResetButton = Button(label='Reset')
+FilterResetButton.on_click(FilterReset)
 
 curdoc().add_root(layout(
    [[data.dataSource,data.magellanCatalog,data.CSPpasswd,data.CSPSubmit,
@@ -103,7 +143,8 @@ curdoc().add_root(layout(
       data.campSelect,data.prioritySelect)
       #data.ageSlider,data.campSelect,data.prioritySelect)
     ],
-    #[skyplot.fig.figure]
+    [FilterButton,FilterResetButton]
    ]
 ))
-curdoc().add_periodic_callback(Update, 1000)
+curdoc().add_periodic_callback(Update1s, 1000)
+curdoc().add_periodic_callback(Update1m, 60000)

@@ -57,14 +57,13 @@ class SkyMap:
    def _setup(self):
       # Setup the graph
       self.hover = HoverTool()
-      self.hover.tooltips = [("Name", "@label"),
-                        ("Type","@type"),("Alt","@alt")]
+      self.hover.tooltips = [("Name", "@Name")]
       self.hover.renderers = []
       #tap = TapTool(callback=OpenURL(url="/navigator/@pk/"), names=['obj'])
      
       self.rmax = 90
       self.fig = polar.PolarPlot(height=self.imsize, width=int(self.imsize*1.1), rmax=self.rmax,
-            tools=["pan","wheel_zoom","box_zoom","reset",self.hover], theta0=np.pi/2,
+            tools=["pan","tap","wheel_zoom","box_zoom","reset",self.hover], theta0=np.pi/2,
             clockwise=True)
       self.fig.grid()
       self.fig.taxis_label()
@@ -98,14 +97,14 @@ class SkyMap:
                   view=self.conView, line_color='gray', line_width=0.5)
      
 
-   def plotTargets(self, source, alt, az):
+   def plotTargets(self, source, alt, az, view=None, **kwargs):
       '''Plots the objects for a given night for the given objects located in
       the CDS source. alt and az must correspond to altitude and azimuth'''
 
-      booleans=np.less(source.data[alt], self.rmax)
-      self.targetView = CDSView(filter=BooleanFilter(booleans=booleans))
-      scat = self.fig.scatter(alt,az, source=source, view=self.targetView,
-                       marker='circle')
+      if view is None:
+         view = CDSView(filter=AllIndices())
+      scat = self.fig.scatter(alt,az, source=source, view=view,
+                       **kwargs)
       self.hover.renderers = [scat]
       
       # Now need to keep track of all the things the hovertool needs to show

@@ -112,6 +112,9 @@ class ObjectData:
       self.data = dict(
          RA = np.array([]),
          DE = np.array([]),
+         alts = np.array([]),
+         alt = np.array([]),
+         az = np.array([]),
          ID = [],
          AM = np.array([]),
          Name = [],
@@ -120,10 +123,11 @@ class ObjectData:
       self.data = computeNightQuantities(self.data)
       self.now = computeCurrentQuantities(self.data['targets'])
       self.source = None
+      self.view = None
       self.makeDataSource()
       self.Nameformatter = HTMLTemplateFormatter(template=\
          '<strong> <%= value %> </strong>')
-      self.view = CDSView(filter=AllIndices())
+      #self.view = CDSView(filter=AllIndices())
 
       self.table = None
       self.AMfig = None
@@ -131,7 +135,7 @@ class ObjectData:
    def updateDataSource(self, attr, old, new):
       self.dataSourceMessage.visible = False # reset
       if new in self.QSTRS:
-         # POSIE data from SQL and has more filters
+         # POISE data from SQL and has more filters
          self.CSPpasswd.visible = True
          self.CSPSubmit.visible = True
          self.magellanCatalog.visible = False
@@ -182,10 +186,13 @@ class ObjectData:
       d = dict(times=[dts for x in self.data['AM']],
                AMs = [np.array(x) for x in self.data['AM']],
                AM = np.array(self.data['AM']),
-               alts = [np.array(x) for x in self.data['alt']],
+               alts = [np.array(x) for x in self.data['alts']],
                Name = self.data['Name'],
                RA = np.array(self.data['RA']),
                DE = np.array(self.data['DE']),
+               alt = np.array(self.now['alt']),
+               zang = np.array(self.now['zang']),         # Should be in degrees
+               az = np.array(self.now['az'])*np.pi/180,   # Make sure in radians
                ID = self.data['ID'],
                HA = np.array(self.now['HA']),
                Tags = self.data['comm']
@@ -212,8 +219,12 @@ class ObjectData:
          self.source.data = d
       else:
          self.source = ColumnDataSource(d)
-      #self.source.selected.on_change('indices', self.onSelectChange)
-      #self.view = CDSView(filter=AllIndices(), source=self.source)
+
+      booleans = np.ones((len(d['Name'])), dtype=bool)
+      if self.view is not None:
+         self.view.filter.booleans = booleans
+      else:
+         self.view = CDSView(filter=BooleanFilter(booleans=booleans))
 
       tags = list(set([tag for tag in self.data['comm'] if tag]))
       if len(tags) > 0:
@@ -274,6 +285,6 @@ class ObjectData:
       TableColumn(field="AM", title="Airm", 
                formatter=NumberFormatter(format='0.00'),width=100)]
       self.table = DataTable(source=self.source, view=self.view,
-                  columns=columns, selectable="checkbox",width=400, 
+                  columns=columns, selectable="checkbox",width=400, height=500,
                   index_position=None, scroll_to_selection=False)
       return(self.table)
