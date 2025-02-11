@@ -19,6 +19,10 @@ font-size: large;
 background: grey;
 color: #41d849;
 }
+.bk-btn:hover {
+background: grey;
+color:41d849 
+}
 '''
 )
 
@@ -112,7 +116,6 @@ LCOsky = ColumnDataSource(dict(image=[img]))
 skyplot.fig.figure.image_rgba(image='image',source=LCOsky, x=-1.033, y=-1.028, dw=2.06, dh=2.06,
                               level='image')
 #skyplot.plotTargets(data.source, 'alt','az')
-url = "https://csp.lco.cl/sn/sn.php?sn=@Name"
 tt = skyplot.fig.figure.select(type=TapTool)
 tt.renderers = skyplot.hover.renderers
 tt.callback = CustomJS(args=dict(source=data.source), code='''
