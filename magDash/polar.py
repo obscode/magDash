@@ -107,12 +107,7 @@ class PolarPlot:
       self.figure.text(x_labels, y_labels, angle_labels, angle=-np.pi/2+t_spokes,
          text_font_size="11pt", text_align="center", text_baseline="bottom",
          text_color="gray", level='annotation')
-      #self.figure.scatter(x_labels, y_labels, marker='circle', level='annotation')
 
-   #def segment(self, r0, t0, r1, t1, **kwargs):
-   #   x0,y0 = self.rt2xy(r0,t0)
-   #   x1,y1 = self.rt2xy(r1,t1)
-   #   return self.figure.segment(x0,y0,x1,y1, **kwargs)
    
    def bind_bokeh(self, name):
       def bfunc(r, t, *args, **kwargs):
@@ -172,22 +167,6 @@ class PolarPlot:
       elif key in self.figure.__dict__:
          return self.figure.__dict__[key]
       raise AttributeError(key)
-
-   #def annulus(r,t, *args, **kwargs):
-   #   return self.figure.annulus(*(self.rt2xy(r,t)+args), **kwargs)
-
-def RAhDecd2xy(RA,DEC,obs):
-      o = ephem.FixedBody()
-      o._ra = ephem.degrees(RA*15*pi/180)
-      o._dec = ephem.degrees(DEC*pi/180)
-      o._epoch = ephem.J2000
-      o.compute(obs)
-      clip=False
-      if o.alt*180.0/pi < 30: clip=True
-      x = (pi/2-o.alt)*180/pi*sin(o.az)
-      y = (pi/2-o.alt)*180/pi*cos(o.az)
-      return (x,y,clip)
-
 
 if __name__ == '__main__':
     from bokeh.plotting import ColumnDataSource
