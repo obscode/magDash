@@ -13,6 +13,7 @@ from astropy import units as u
 from astropy.time import Time
 from .compute import computeCurrentQuantities,computeNightQuantities
 import numpy as np
+import traceback
 
 def readMagCat(input):
    fields = ['ID','Name','RA','DE','equinox','pmRA','pmDEC','rotoff','rotmode',
@@ -275,6 +276,7 @@ class ObjectData:
       except:
          self.dataSourceMessage.text = "<font color='red'>Query failed</font>"
          self.dataSourceMessage.visible = True
+         print(traceback.format_exc())
          return
 
       self.ageSlider.visible = True
