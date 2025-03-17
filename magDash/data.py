@@ -10,6 +10,7 @@ from bokeh.models.filters import BooleanFilter,AllIndices
 import base64
 from astropy.coordinates import SkyCoord
 from astropy import units as u
+from astropy.time import Time
 from .compute import computeCurrentQuantities,computeNightQuantities
 import numpy as np
 
@@ -38,6 +39,11 @@ def readMagCat(input):
          data['comm'].append('#'.join(fs[1:]))
 
       fs = fs[0].split()
+      if len(fs) > 16:
+         # Treat end fields as comments. This is not the stndard, but whatevs
+         data['comm'][-1] += " ".join(fs[16:])
+         fs = fs[:16]
+
       for i in range(len(fs)):
          field = fields[i]
          if field in ['equinox','pmRA','pmDEC','rotoff','gp1equ','gp2equ',
@@ -45,6 +51,16 @@ def readMagCat(input):
             data[field].append(float(fs[i]))
          else:
             data[field].append(fs[i])
+      if i < 15:
+         # Missing data
+         for i in range(i+1,16):
+            field = fields[i]
+            if field in ['equinox','pmRA','pmDEC','rotoff','gp1equ','gp2equ',
+                         'obsEpoch']:
+               data[field].append(0)
+            else:
+               data[field].append('')
+
       coord = SkyCoord(data['RA'][-1],data['DE'][-1], 
                        unit=(u.hourangle,u.degree))
       data['RA'][-1] = coord.ra.to('hourangle').value
@@ -100,7 +116,9 @@ class ObjectData:
       self.ageSlider = RangeSlider(start=0, end=100, value=(0,100), step=1., 
                                    title="Age", visible=False)
       self.ageSlider.on_change('value_throttled', self.updateViewFilter)
-      #CAMP_OPTIONS = ['2024A','2024B','2025A']
+      self.cadSlider = RangeSlider(start=0, end=100, value=(0,100), step=1., 
+                                   title="Cadence", visible=False)
+      self.cadSlider.on_change('value_throttled', self.updateViewFilter)
       self.campSelect = MultiChoice(value=[], options=[], 
                                     title='Campaigns', visible=False)
       self.campSelect.on_change('value', self.updateViewFilter)
@@ -147,6 +165,7 @@ class ObjectData:
          self.CSPSubmit.visible = False
          self.magellanCatalog.visible = True
          self.ageSlider.visible = False
+         self.cadSlider.visible = False
          self.campSelect.visible = False
          self.prioritySelect.visible = False
          self.table.columns[1].formatter = HTMLTemplateFormatter(template=\
@@ -164,6 +183,9 @@ class ObjectData:
       if self.ageSlider.visible:
          bools &= ((data['age'] >= self.ageSlider.value[0]) &\
                    (data['age'] <= self.ageSlider.value[1]))
+      if self.cadSlider.visible:
+         bools &= (np.isnan(data['cad']) | ((data['cad'] >= self.cadSlider.value[0]) &\
+                   (data['cad'] <= self.cadSlider.value[1])))
       if self.tagSelector.value:
          bools &= np.array([tag in self.tagSelector.value \
                          for tag in data['Tags']])
@@ -214,6 +236,16 @@ class ObjectData:
          self.ageSlider.end = d['age'].max()+1
          self.ageSlider.step = (self.ageSlider.end-self.ageSlider.start)/100
          self.ageSlider.value = (self.ageSlider.start, self.ageSlider.end)
+      if 'utobs' in self.data:
+         # UT date of last observation
+         print(self.data['utobs'])
+         UTs = Time(self.data['utobs'])
+         deltat = self.now['now'].jd - UTs.jd
+         d['cad'] = np.where(deltat < 9000, deltat, np.nan)
+         self.cadSlider.start = d['cad'][~np.isnan(d['cad'])].min()-1
+         self.cadSlider.end = d['cad'][~np.isnan(d['cad'])].max()+1
+         self.cadSlider.step = (self.cadSlider.end-self.cadSlider.start)/100
+         self.cadSlider.value = (self.cadSlider.start, self.cadSlider.end)
          
       if self.source is not None:
          self.source.data = d
@@ -246,6 +278,7 @@ class ObjectData:
          return
 
       self.ageSlider.visible = True
+      self.cadSlider.visible = True
       self.campSelect.visible = True
       self.prioritySelect.visible = True
       self.data = computeNightQuantities(self.data)
@@ -254,6 +287,7 @@ class ObjectData:
       self.table.columns[1].formatter = HTMLTemplateFormatter(template=\
          '<a href="https://csp.lco.cl/sn/sn.php?sn=<%= value %>" '\
          'target="_SN"><%= value %></a>')
+      self.table.columns[-1].visible=True
 
    def uploadCatalog(self, attr, old, new):
       try:
@@ -275,7 +309,7 @@ class ObjectData:
       columns = [
       TableColumn(field="ID", title="ID", width=10),
       TableColumn(field="Name", title="Name", formatter=self.Nameformatter),
-      TableColumn(field="HA", title="Hour Ang", 
+      TableColumn(field="HA", title="HA", 
                formatter=NumberFormatter(format='0.00'), width=100),
       TableColumn(field="RA", title="RA", 
                formatter=NumberFormatter(format='0.00000'),
@@ -283,7 +317,11 @@ class ObjectData:
       TableColumn(field="DE", title="DEC", 
                formatter=NumberFormatter(format='0.00000'), visible=False),
       TableColumn(field="AM", title="Airm", 
-               formatter=NumberFormatter(format='0.00'),width=100)]
+               formatter=NumberFormatter(format='0.00'),width=100),
+      TableColumn(field="age", title="Age", 
+                     formatter=NumberFormatter(format="0.0"), visible=False)]
+      TableColumn(field="cad", title="Cad", 
+                     formatter=NumberFormatter(format="0.0"), visible=False)]
       self.table = DataTable(source=self.source, view=self.view,
                   columns=columns, selectable="checkbox",width=400, height=500,
                   index_position=None, scroll_to_selection=False)

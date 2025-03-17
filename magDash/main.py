@@ -12,6 +12,9 @@ from bokeh.models.css import InlineStyleSheet
 from bokeh.models.tickers import FixedTicker
 import numpy as np
 
+# Global settings
+SERVERLOC="local"
+
 infoBtn_css = InlineStyleSheet(css=\
 '''
 .bk-btn {
@@ -142,7 +145,8 @@ curdoc().add_root(layout(
         data.dataSourceMessage],
     [LT,UT,ST],
     [table,tabs,column(
-      data.RArange,data.DECrange,data.minAirmass,data.tagSelector,
+      data.RArange,data.DECrange,data.minAirmass,data.ageSlider,
+      data.cadSlider, data.tagSelector,
       data.campSelect,data.prioritySelect)
       #data.ageSlider,data.campSelect,data.prioritySelect)
     ],
