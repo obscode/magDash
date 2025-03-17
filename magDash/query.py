@@ -17,6 +17,9 @@ from functools import cache
 import datetime
 import os
 import requests
+from bs4 import BeautifulSoup
+import re
+
 from PIL import Image
 
 HOST='sql.obs.carnegiescience.edu'
@@ -27,6 +30,8 @@ if 'CSPpasswd' in os.environ:
 
 DB='CSP'
 
+target_pat = re.compile(r'target:"([^"]+)"')
+
 def airmass(h):
    '''Computer airmass from Pickering (2002) given altitude angle h'''
    nh = np.where(h > 0, h, 0.001)
@@ -34,14 +39,19 @@ def airmass(h):
    return np.power(np.sin(arg*np.pi/180), -1) 
 
 Q_query = '''
-select t0.*,t2.mag,t2.night,t2.jd 
+select t0.*,t2.mag,t2.night,t2.jd,t4.UT
   from SNList t0 left join (
     select t1.field as field,t1.night as night,t1.mag as mag, max(t1.jd) as jd
     from (
       select * from MAGSN where filt="r" and obj<1 order by night desc
     ) as t1 group by field
   ) t2 on (t0.SN=t2.field or t0.NAME_CSP=t2.field or t0.NAME_IAU=t2.field or 
-           t0.NAME_PSN=t2.field) 
+           t0.NAME_PSN=t2.field) left join (
+    select t3.SN as field,max(t3.UT) as UT
+    from (
+       select * from obs_log where MD="{}"
+    ) as t3 group by field
+  ) t4 on (t2.field=t4.field)
 WHERE ACTIVE = "1" and {} = "1" ORDER BY RA'''
 
 priority_query = '''
@@ -54,11 +64,16 @@ Q_names = ['SNID','SN','type','RA','DE','zc','zcmb','zvrb','dmag','host',
    'offew','offns','gtype','comm','survey','active','camp','agerdate',
    'datemeans','name_iau','name_psn','guider','nstd','qswo','qfire','qrc',
    'qwfccd','name_csp','qc0','inot','qalfosc','qnotcam','qlcogt','qfsu',
-   'qlmc','mag','night','jd']
+   'qlmc','mag','night','jd','utobs']
 
 CAMPS = ['2004/2005','2005/2006','2006/2007','2007/2008','2008/2009',
          '2011/2012','2012/2013','2013/2014','2014/2015','2015/2016',
          '2016/2017','2017/2018','2018/2019','2019/2020']
+
+# obs_log entries for each queue
+OBS_Names = {'QSWO':"Opt",
+             'QWFCCD':"Spe",
+             'QFIRE':"Isp"}
 
 def camp_str(camp):
    '''Convert campaign integer into campaign string'''
@@ -75,7 +90,8 @@ def camp_str(camp):
 def qData(queue='QSWO'):
    db = pymysql.connect(host=HOST, user=USER, passwd=PASS, db=DB)
    c = db.cursor()
-   N = c.execute(Q_query.format(queue))
+   #print(Q_query.format(queue,OBS_Names[queue]))
+   N = c.execute(Q_query.format(OBS_Names[queue],queue))
    rows = c.fetchall()
    data = {}.fromkeys(Q_names)
    for i,name in enumerate(Q_names):
@@ -94,6 +110,7 @@ def qData(queue='QSWO'):
    data['camp'] = [camp_str(camp) for camp in data['camp']]
 
    priorities = []
+   mags = []
    for SN in data['SNID']:
       NN = c.execute(priority_query, (SN,))
       if NN == 1:
@@ -104,51 +121,12 @@ def qData(queue='QSWO'):
 
    if queue=='QWFCCD':
       addStandards(data)
+   # Handle cases where not observed yet or is a standard
+   data['utobs'] = [ut if ut else '2000-01-01' for ut in data['utobs']]
    db.close()
    data['N'] = N
 
    return data
-
-@cache
-def makeTimeRange(year, month, day, location='LCO', deltat=5*u.minute):
-   '''Given a time, find the previous sunset, next sunrise and grid the
-   time with N intervals.'''
-   obs = Observer.at_site(location)
-   dt = datetime.datetime(year, month, day, 3, 0, 0)   # 3AM UTC
-   date = Time(dt, scale='utc')
-
-   midnight = obs.midnight(date)
-   sunset = obs.sun_set_time(midnight)   # do at midnight to avoid rise < set
-   sunrise = obs.sun_rise_time(midnight)
-   twilight_begin = obs.twilight_morning_astronomical(midnight)
-   twilight_end = obs.twilight_evening_astronomical(midnight)
-   times = [sunset]
-   while times[-1] < sunrise:
-      times.append(times[-1] + deltat)
-   data = dict(sr=sunrise, ss=sunset, tb=twilight_begin, te=twilight_end,
-               times=times)
-   return data
-   
-def compute(data, date=None, location='LCO'):
-   '''Take the data from target list and derive quantities needed for
-   the dashboard.'''
-
-   obs = Observer.at_site(location)
-   if date is None:
-      date = Time.now()
-   else:
-      date = Time(date)
-
-   # Now some derived quantities
-   c = SkyCoord(data['RA'], data['DE'], unit=(u.hourangle, u.degree))
-   t = FixedTarget(c)
-   aa = obs.altaz(date, t)
-   data['HA'] = (t.ra.to('hourangle') - obs.local_sidereal_time(date)).\
-                 to('hourangle').value
-   data['alt'] = aa.alt.to('degree').value
-   data['AM'] = airmass(aa.alt.to('degree').value)
-
-   return ColumnDataSource(data=data)
 
 def getLCOsky(format='bokeh'):
    '''Retrieve the LCO all-sky image and return as image arrays
@@ -167,3 +145,17 @@ def getLCOsky(format='bokeh'):
    view[:,:,2] = arr[::-1,::,2]
    view[:,:,3] = arr[::-1,::,3]
    return img
+
+def getMagPointing(tel='BAADE'):
+   '''If sam.lco.cl is available, get the current poining of BAADE or CLAY'''
+   try:
+      page = requests.get('http://sam.lco.cl/TOPS/pointing/pointing.php?magtel=CLAY')
+   except:
+      # Failed to connect, so likely sam.lco.cl is not accessible
+      return None,None
+   soup = BeautifulSoup(page.content, features='html.parser')
+   scripts = soup.find_all('script')
+   s = scripts[-1]
+   res = target_pat.search(s.contents[0])
+   if res is None: return None,None
+   return(res.group(1).split())
