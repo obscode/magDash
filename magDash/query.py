@@ -22,13 +22,13 @@ import re
 
 from PIL import Image
 
-HOST='sql.obs.carnegiescience.edu'
-USER='CSP'
-PASS=''
+HOST='csp-nas.lco.cl'
+USER='csp'
+PASS='Hnot=75.0!'
 if 'CSPpasswd' in os.environ:
    PASS = os.environ['CSPpasswd']
 
-DB='CSP'
+DB='Phot'
 
 target_pat = re.compile(r'target:"([^"]+)"')
 
