@@ -22,9 +22,9 @@ import re
 
 from PIL import Image
 
-HOST='csp-nas.lco.cl'
-USER='csp'
-PASS='Hnot=75.0!'
+HOST='sql.obs.carnegiescience.edu'
+USER='CSP'
+PASS=''
 if 'CSPpasswd' in os.environ:
    PASS = os.environ['CSPpasswd']
 
