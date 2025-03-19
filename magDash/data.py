@@ -321,7 +321,7 @@ class ObjectData:
       TableColumn(field="AM", title="Airm", 
                formatter=NumberFormatter(format='0.00'),width=100),
       TableColumn(field="age", title="Age", 
-                     formatter=NumberFormatter(format="0.0"), visible=False)]
+                     formatter=NumberFormatter(format="0.0"), visible=False),
       TableColumn(field="cad", title="Cad", 
                      formatter=NumberFormatter(format="0.0"), visible=False)]
       self.table = DataTable(source=self.source, view=self.view,
