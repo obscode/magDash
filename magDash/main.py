@@ -50,6 +50,7 @@ def Update1m():
    data.source.data['zang'] = data.now['zang']
    data.source.data['az'] = data.now['az']*np.pi/180
    data.source.data['alt'] = data.now['alt']
+   print(data.now['now'].datetime)
    AMvline.location = data.now['now'].datetime
    img = getLCOsky()
    LCOsky.data['image'] = [img]
@@ -86,26 +87,26 @@ AMfig.toolbar_location = None
 AMhvr = HoverTool(tooltips=AMtoolTips)
 AMfig.add_tools(AMhvr)
 AMfig.extra_y_ranges = {"AM": Range1d(start=10, end=90)}
-AMfig.varea(x=[data.data['t0'],data.data['ss'].datetime],y1=[0,0], y2=[100,100], 
+AMfig.varea(x=[data.data['t0'],data.data['ss'].datetime],y1=[0,0], y2=[100,100],
             fill_color="black", fill_alpha=0.5)
 AMfig.varea(x=[data.data['ss'].datetime,data.data['te'].datetime],y1=[0,0], 
             y2=[100,100], fill_color="black", fill_alpha=0.25)
 AMfig.varea(x=[data.data['tb'].datetime,data.data['sr'].datetime],y1=[0,0], 
             y2=[100,100], fill_color="black", fill_alpha=0.25)
-AMfig.varea(x=[data.data['sr'].datetime,data.data['t1']],y1=[0,0], y2=[100,100], 
+AMfig.varea(x=[data.data['sr'].datetime,data.data['t1']],y1=[0,0], y2=[100,100],
             fill_color="black", fill_alpha=0.5)
 AMfig.y_range = Range1d(10,90)
 AMfig.x_range = Range1d(data.data['t0'],data.data['t1'])
 tickloc = list(range(10,100,10))
 ax2 = LinearAxis(y_range_name="AM", ticker=FixedTicker(ticks=tickloc),
                  axis_label='Airmass')
-ax2.major_label_overrides = {10:"5.76", 20:"2.92", 30:"2.20", 40:"1.56", 50:"1.31",
-                             60:"1.15", 70:"1.06", 80:"1.02", 90:"1.00"}
+ax2.major_label_overrides = {10:"5.76", 20:"2.92", 30:"2.20", 40:"1.56", 
+        50:"1.31", 60:"1.15", 70:"1.06", 80:"1.02", 90:"1.00"}
 AMfig.add_layout(ax2, 'right')
 AMml = AMfig.multi_line(xs="times", ys="alts", source=data.source, 
                         hover_color='red', view=data.view)
-AMvline = Span(location=data.now['now'].datetime, dimension='height', line_color='red', 
-             line_width=3)
+AMvline = Span(location=data.now['now'].datetime, dimension='height', 
+        line_color='red', line_width=3)
 AMfig.add_layout(AMvline)
 AMhvr.renderers = [AMml]
 
