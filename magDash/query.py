@@ -86,7 +86,6 @@ def camp_str(camp):
       return CAMPS[idx]
 
 
-@cache
 def qData(queue='QSWO'):
    db = pymysql.connect(host=HOST, user=USER, passwd=PASS, db=DB)
    c = db.cursor()
