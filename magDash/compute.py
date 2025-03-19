@@ -28,14 +28,12 @@ def airmass(h):
    return np.power(np.sin(arg*np.pi/180), -1) 
 
 @cache
-def makeTimeRange(year, month, day, location='LCO', deltat=5*u.minute):
+def makeTimeRange(date, location='LCO', deltat=5*u.minute):
    '''Given a time, find the previous sunset, next sunrise and grid the
    time with N intervals.
    
    Args:
-      year (int):  year (YYYY)
-      month (int):  month (MM)
-      day (int):  day (DD)
+      date (astropy.Time):  Current UTC time
       location(string):  observer's location (Observer.at_site())
       deltat (float*time unit):  the time interval between for time range
       
@@ -47,14 +45,16 @@ def makeTimeRange(year, month, day, location='LCO', deltat=5*u.minute):
              'times': the time values
    '''
    obs = Observer.at_site(location)
-   dt = datetime.datetime(year, month, day, 3, 0, 0)   # 3AM UTC
-   date = Time(dt, scale='utc')
+   #dt = datetime.datetime(year, month, day, 3, 0, 0)   # 3AM UTC
+   #date = Time(dt, scale='utc')
 
-   midnight = obs.midnight(date)
-   sunset = obs.sun_set_time(midnight)   # do at midnight to avoid rise < set
-   sunrise = obs.sun_rise_time(midnight)
-   twilight_begin = obs.twilight_morning_astronomical(midnight)
-   twilight_end = obs.twilight_evening_astronomical(midnight)
+   if obs.sun_set_time(date) > obs.sun_rise_time(date):
+       # Datetime, fast-forward to just after sunset
+       date = obs.sun_set_time(date) + 1*u.minute
+   sunset = obs.sun_set_time(date)  
+   sunrise = obs.sun_rise_time(date)
+   twilight_begin = obs.twilight_morning_astronomical(date)
+   twilight_end = obs.twilight_evening_astronomical(date)
    times = [sunset - 1*u.hour]
    while times[-1] < sunrise + 1*u.hour:
       times.append(times[-1] + deltat)
@@ -91,7 +91,7 @@ def computeNightQuantities(data, date=None, location='LCO', deltat=5*u.minute):
    # Now some derived quantities
    c = SkyCoord(data['RA'], data['DE'], unit=(u.hourangle, u.degree))
    t = FixedTarget(c)
-   res = makeTimeRange(dt.year, dt.month, dt.day, location, deltat)
+   res = makeTimeRange(date, location, deltat)
    for key in res:
       data[key] = res[key]
 
