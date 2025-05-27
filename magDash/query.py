@@ -24,7 +24,7 @@ from PIL import Image
 
 HOST='csp-nas.lco.cl'
 USER='csp'
-PASS='Hnot=75.0!'
+PASS=''
 if 'CSPpasswd' in os.environ:
    PASS = os.environ['CSPpasswd']
 
