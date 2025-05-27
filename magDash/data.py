@@ -5,8 +5,9 @@ from bokeh.models import (RangeSlider, Slider, Select, CheckboxButtonGroup,
                           MultiChoice, ColumnDataSource, FileInput,
                           TableColumn, NumberFormatter, DataTable,
                           HTMLTemplateFormatter,CDSView,PasswordInput,Button,
-                          Div)
+                          Div, CheckboxGroup)
 from bokeh.models.filters import BooleanFilter,AllIndices
+from bokeh.palettes import Viridis6
 import base64
 from astropy.coordinates import SkyCoord
 from astropy import units as u
@@ -76,11 +77,18 @@ def readMagCat(input):
 class ObjectData:
 
    DS_OPTIONS = ['Magellan Catalog','POISE:Swope','POISE:IMACS','POISE:FIRE']
-   PRIORITY_OPTIONS = ['Raw-High','High','Medium','Med-rare','Low','Monthly',
-                          'Calib','Template']
+   PRIORITY_OPTIONS = ['Raw-high','High','Medium','Med-rare','Low','Monthly',
+                          'Calib','Template','Standard']
    QSTRS = {'POISE:Swope':"QSWO",
             'POISE:IMACS':"QWFCCD",
             'POISE:FIRE':"QFIRE"}
+
+   cadences = {'Raw-high':1,
+               'High':1,
+               'Medium':2,
+               'Med-rare':4,
+               'Low':7,
+               'Monthly':30}
    
    def __init__(self):
 
@@ -126,6 +134,8 @@ class ObjectData:
       self.prioritySelect = CheckboxButtonGroup(active=[], 
          labels = self.PRIORITY_OPTIONS, visible=False)
       self.prioritySelect.on_change('active', self.updateViewFilter)
+      self.observeSelector = CheckboxGroup(labels=["Observe = Y","Observe = N"],
+              active=[], visible=False)
 
       # -----  The initial DataColumnSource with no objects
       self.data = dict(
@@ -169,6 +179,7 @@ class ObjectData:
          self.cadSlider.visible = False
          self.campSelect.visible = False
          self.prioritySelect.visible = False
+         self.observeSelector.visible = False
          self.table.columns[1].formatter = HTMLTemplateFormatter(template=\
          '<strong> <%= value %> </strong>')
 
@@ -198,6 +209,8 @@ class ObjectData:
                                 for idx in self.prioritySelect.active]
          bools &= np.array([tag in selected_priorities \
                             for tag in data['priority']])
+      #if self.observeSelector.visible and self.observe.Selector.active:
+      #    observe = [
       
       self.view.filter = BooleanFilter(booleans=bools)
 
@@ -237,16 +250,36 @@ class ObjectData:
          self.ageSlider.end = d['age'].max()+1
          self.ageSlider.step = (self.ageSlider.end-self.ageSlider.start)/100
          self.ageSlider.value = (self.ageSlider.start, self.ageSlider.end)
-      if 'utobs' in self.data:
+      if 'jdcad' in self.data:
          # UT date of last observation
-         print(self.data['utobs'])
-         UTs = Time(self.data['utobs'])
-         deltat = self.now['now'].jd - UTs.jd
+         #UTs = Time(self.data['utobs'])
+         deltat = self.now['now'].jd - np.array(self.data['jdcad'])+0.5
          d['cad'] = np.where(deltat < 9000, deltat, np.nan)
          self.cadSlider.start = d['cad'][~np.isnan(d['cad'])].min()-1
          self.cadSlider.end = d['cad'][~np.isnan(d['cad'])].max()+1
          self.cadSlider.step = (self.cadSlider.end-self.cadSlider.start)/100
          self.cadSlider.value = (self.cadSlider.start, self.cadSlider.end)
+
+      # Set observe flag
+      if self.dataSource.value == "POISE:Swope":
+         d['observe'] = []
+         for i,c in enumerate(d['cad']):
+             p = d['priority'][i]
+             if c and p in self.cadences:
+                 if c >= self.cadences[p]:
+                    d['observe'].append('Y')
+                 else:
+                    d['observe'].append('N')
+             else:
+                 d['observe'].append('-')
+
+      # Set colors
+      d['color'] = []
+      for t in d['Tags']:
+          if t.find('Standard') >= 0:
+              d['color'].append("orange")
+          else:
+              d['color'].append("blue")
          
       if self.source is not None:
          self.source.data = d
@@ -283,6 +316,7 @@ class ObjectData:
       self.cadSlider.visible = True
       self.campSelect.visible = True
       self.prioritySelect.visible = True
+      self.observeSelector.visible = True
       self.data = computeNightQuantities(self.data)
       self.now = computeCurrentQuantities(self.data['targets']) 
       self.makeDataSource()
@@ -305,6 +339,8 @@ class ObjectData:
       self.now = computeCurrentQuantities(self.data['targets'])
       self.makeDataSource()
       self.table.source = self.source
+      if "observe" in self.source.data:
+          self.table.columns[-1].visible = True
 
    def makeTable(self):
 
@@ -323,7 +359,8 @@ class ObjectData:
       TableColumn(field="age", title="Age", 
                      formatter=NumberFormatter(format="0.0"), visible=False),
       TableColumn(field="cad", title="Cad", 
-                     formatter=NumberFormatter(format="0.0"), visible=False)]
+                     formatter=NumberFormatter(format="0.0"), visible=False),
+      TableColumn(field="observe", title="Obs", visible=False)]
       self.table = DataTable(source=self.source, view=self.view,
                   columns=columns, selectable="checkbox",width=400, height=500,
                   index_position=None, scroll_to_selection=False)
