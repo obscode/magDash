@@ -27,7 +27,6 @@ def airmass(h):
    arg = nh + 244./(165. + 47.*np.power(nh, 1.1))
    return np.power(np.sin(arg*np.pi/180), -1) 
 
-@cache
 def makeTimeRange(date, location='LCO', deltat=5*u.minute):
    '''Given a time, find the previous sunset, next sunrise and grid the
    time with N intervals.
@@ -45,21 +44,20 @@ def makeTimeRange(date, location='LCO', deltat=5*u.minute):
              'times': the time values
    '''
    obs = Observer.at_site(location)
-   #dt = datetime.datetime(year, month, day, 3, 0, 0)   # 3AM UTC
-   #date = Time(dt, scale='utc')
+   dt = date.datetime
+   dt = datetime.datetime(dt.year, dt.month, dt.day, 3, 0, 0)   # 3AM UTC
+   date = Time(dt, scale='utc')
 
-   if obs.sun_set_time(date) > obs.sun_rise_time(date):
-       # Datetime, fast-forward to just after sunset
-       date = obs.sun_set_time(date) + 1*u.minute
-   sunset = obs.sun_set_time(date)  
-   sunrise = obs.sun_rise_time(date)
-   twilight_begin = obs.twilight_morning_astronomical(date)
-   twilight_end = obs.twilight_evening_astronomical(date)
+   sunset = obs.sun_set_time(date, which="previous")  
+   sunrise = obs.sun_rise_time(date, which="next")
+   twilight_end = obs.twilight_evening_astronomical(date, which="previous")
+   twilight_begin = obs.twilight_morning_astronomical(date, which="next")
    times = [sunset - 1*u.hour]
    while times[-1] < sunrise + 1*u.hour:
       times.append(times[-1] + deltat)
    data = dict(sr=sunrise, ss=sunset, tb=twilight_begin, te=twilight_end,
                times=times)
+   #print(data)
    return data
 
 def computeNightQuantities(data, date=None, location='LCO', deltat=5*u.minute):
