@@ -7,7 +7,7 @@ from .plot_skyview_bokeh import SkyMap
 from bokeh.plotting import figure
 from bokeh.models import Range1d, Button, LinearAxis, Span,\
                          HoverTool, TabPanel, Tabs, CustomJS,\
-                         TapTool,ColumnDataSource
+                         TapTool,ColumnDataSource, CustomJSHover
 from bokeh.models.css import InlineStyleSheet
 from bokeh.models.tickers import FixedTicker
 import numpy as np
@@ -78,8 +78,9 @@ ST = Button(label="ST: "+data.now['ST'], stylesheets=[infoBtn_css])
 table = data.makeTable()
 
 # ---------------- AIRMASS PLOT
-AMtoolTips = [("Name","@Name"),("AM","$y"),("Time","$x{%H:%M}")]
-formatter = {'$x': 'datetime'}
+AMtoolTips = [("Name","@Name"),("AM","$y{custom}"),("Time","$x{%H:%M}")]
+formatter = {'$x': 'datetime',
+             '$y': CustomJSHover(code="return (1.0/Math.cos(Math.PI*(90 - value)/180)).toFixed(2)")}
 
 AMfig = figure(width=500, height=400, x_axis_type='datetime',
                x_axis_label='UTC', y_axis_label="Altitude")
