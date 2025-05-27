@@ -41,23 +41,28 @@ def airmass(h):
 Q_query = '''
 select t0.*,t2.mag,t2.night,t2.jd,t4.UT
   from SNList t0 left join (
-    select t1.field as field,t1.night as night,t1.mag as mag, max(t1.jd) as jd
+    select t1.field as field,t1.night as night,t1.mag as mag, t1.jd as jd
     from (
-      select * from MAGSN where filt="r" and obj<1 order by night desc
-    ) as t1 group by field
-  ) t2 on (t0.SN=t2.field or t0.NAME_CSP=t2.field or t0.NAME_IAU=t2.field or 
-           t0.NAME_PSN=t2.field) left join (
-    select t3.SN as field,max(t3.UT) as UT
-    from (
-       select * from obs_log where MD="{}"
-    ) as t3 group by field
-  ) t4 on (t2.field=t4.field)
-WHERE ACTIVE = "1" and {} = "1" ORDER BY RA'''
+      select field,night,mag,jd,ROW_NUMBER() OVER (PARTITION BY field 
+         ORDER BY jd DESC) as rank from MAGSN where filt="r" and obj<1) as t1
+      WHERE t1.rank=1 ) t2 
+      ON (t0.SN=t2.field or t0.NAME_CSP=t2.field or t0.NAME_IAU=t2.field or 
+        t0.NAME_PSN=t2.field) left join (
+          select t3.SN as field,max(t3.UT) as UT
+          from (
+             select * from obs_log where MD="{}"
+          ) as t3 group by field
+        ) t4 on (t2.field=t4.field)
+WHERE {} = "1" {} ORDER BY RA'''
 
 priority_query = '''
 select text from comments 
 where sn_id=%s and type="priority" 
 order by time desc limit 1'''
+
+cad_query = '''
+SELECT UT FROM obs_log WHERE SN=%s and MD=%s
+ORDER BY UT DESC LIMIT 1'''
 
 
 Q_names = ['SNID','SN','type','RA','DE','zc','zcmb','zvrb','dmag','host',
@@ -74,6 +79,9 @@ CAMPS = ['2004/2005','2005/2006','2006/2007','2007/2008','2008/2009',
 OBS_Names = {'QSWO':"Opt",
              'QWFCCD':"Spe",
              'QFIRE':"Isp"}
+WHERES = {"QSWO":'and ACTIVE = "1" ',
+          "QWFCCD":'',
+          "QFIRE":''}
 
 def camp_str(camp):
    '''Convert campaign integer into campaign string'''
@@ -89,8 +97,8 @@ def camp_str(camp):
 def qData(queue='QSWO'):
    db = pymysql.connect(host=HOST, user=USER, passwd=PASS, db=DB)
    c = db.cursor()
-   #print(Q_query.format(queue,OBS_Names[queue]))
-   N = c.execute(Q_query.format(OBS_Names[queue],queue))
+   #print(Q_query.format(OBS_Names[queue],queue,WHERES[queue]))
+   N = c.execute(Q_query.format(OBS_Names[queue],queue,WHERES[queue]))
    rows = c.fetchall()
    data = {}.fromkeys(Q_names)
    for i,name in enumerate(Q_names):
@@ -109,6 +117,7 @@ def qData(queue='QSWO'):
    data['camp'] = [camp_str(camp) for camp in data['camp']]
 
    priorities = []
+   jdcads = []
    mags = []
    for SN in data['SNID']:
       NN = c.execute(priority_query, (SN,))
@@ -117,9 +126,21 @@ def qData(queue='QSWO'):
       else:
          priorities.append("Unknown")
    data['priority'] = priorities
+   for name in data['SN']: 
+      MD = 'Opt'
+      if queue=='QWFCCD': MD='Spe'
+      if queue=='FIRE': MD='Isp'
+      NN = c.execute(cad_query, (name,MD))
+      if NN == 1:
+         ut = c.fetchone()[0]
+         jd = Time(ut).jd
+         jdcads.append(jd)
+      else:
+         jdcads.append(-1)
+   data['jdcad'] = jdcads
 
-   if queue=='QWFCCD':
-      addStandards(data)
+   if queue=='QWFCCD' or queue=='QSWO':
+      addStandards(data, queue)
    # Handle cases where not observed yet or is a standard
    data['utobs'] = [ut if ut else '2000-01-01' for ut in data['utobs']]
    db.close()
