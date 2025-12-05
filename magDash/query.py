@@ -22,8 +22,8 @@ import re
 
 from PIL import Image
 
-HOST='sql.obs.carnegiescience.edu'
-USER='CSP'
+HOST='csp-nas.lco.cl'
+USER='csp'
 PASS=''
 if 'CSPpasswd' in os.environ:
    PASS = os.environ['CSPpasswd']
@@ -152,8 +152,10 @@ def getLCOsky(format='bokeh'):
    '''Retrieve the LCO all-sky image and return as image arrays
       formats:  'bokeh' for inclusion in Bokeh plots
                 'numpy' for NxNx4 np arrays'''
-   im = Image.open(requests.get('https://weather.lco.cl/casca/latestred.png', 
+   im = Image.open(requests.get('https://weather-dev.lco.cl/media/casca/red/latestimage.jpeg', 
                                 stream=True).raw)
+   #im = Image.open(requests.get('https://weather.lco.cl/casca/latestred.png', 
+   #                             stream=True).raw)
    arr = np.array(im.getdata()).reshape(im.size[0],im.size[1],4)
    if format=='numpy':  return arr
 
