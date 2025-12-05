@@ -76,6 +76,7 @@ UT = Button(label="UT: "+data.now['UT'], stylesheets=[infoBtn_css])
 ST = Button(label="ST: "+data.now['ST'], stylesheets=[infoBtn_css])
 
 table = data.makeTable()
+night_table = data.makeNightTable()
 
 # ---------------- AIRMASS PLOT
 AMtoolTips = [("Name","@Name"),("AM","$y{custom}"),("Time","$x{%H:%M}")]
@@ -138,7 +139,8 @@ window.open("https://csp.lco.cl/sn/sn.php?sn="+name,"_SN");
 
 tabs = Tabs(tabs=[
    TabPanel(child=AMfig, title='Airmass'),
-   TabPanel(child=skyplot.fig.figure, title='Sky')
+   TabPanel(child=skyplot.fig.figure, title='Sky'),
+   TabPanel(child=night_table, title='Night Stats')
 ])
 
 FilterButton = Button(label='Filter Selected')

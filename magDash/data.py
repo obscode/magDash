@@ -8,11 +8,12 @@ from bokeh.models import (RangeSlider, Slider, Select, CheckboxButtonGroup,
                           Div, CheckboxGroup)
 from bokeh.models.filters import BooleanFilter,AllIndices
 from bokeh.palettes import Viridis6
+from astroplan import Observer
 import base64
 from astropy.coordinates import SkyCoord
 from astropy import units as u
 from astropy.time import Time
-from .compute import computeCurrentQuantities,computeNightQuantities
+from .compute import computeCurrentQuantities,computeNightQuantities,computeNightParams
 import numpy as np
 import traceback
 
@@ -365,3 +366,15 @@ class ObjectData:
                   columns=columns, selectable="checkbox",width=400, height=500,
                   index_position=None, scroll_to_selection=False)
       return(self.table)
+
+   def makeNightTable(self):
+
+      columns = [
+           TableColumn(field="label", title="Quantity", width=20),
+           TableColumn(field="value", title="Value", width=50)]
+      nightdata = computeNightParams()
+
+      table = DataTable(source=ColumnDataSource(data=nightdata),
+               columns=columns, width=500, height=500)
+      return(table)
+

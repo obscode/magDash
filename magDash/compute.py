@@ -1,6 +1,6 @@
 '''Compute.py:  compute the astronomical data based on queued data'''
 from functools import cache
-from astroplan import Observer,FixedTarget
+from astroplan import Observer,FixedTarget,moon_illumination
 from astropy.time import Time
 from astropy import units as u
 from astropy.coordinates import SkyCoord
@@ -44,14 +44,20 @@ def makeTimeRange(date, location='LCO', deltat=5*u.minute):
              'times': the time values
    '''
    obs = Observer.at_site(location)
-   dt = date.datetime
-   dt = datetime.datetime(dt.year, dt.month, dt.day, 3, 0, 0)   # 3AM UTC
-   date = Time(dt, scale='utc')
+   #dt = date.datetime
+   #dt = datetime.datetime(dt.year, dt.month, dt.day, 3, 0, 0)   # 3AM UTC
+   #date = Time(dt, scale='utc')
 
+   # Logic here is to check for previous sunset and next sunrise (assume that
+   #  we're currently observing at night. But if not, the previous sunset may
+   #  in the past (the day before), so check for that
    sunset = obs.sun_set_time(date, which="previous")  
    sunrise = obs.sun_rise_time(date, which="next")
    twilight_end = obs.twilight_evening_astronomical(date, which="previous")
    twilight_begin = obs.twilight_morning_astronomical(date, which="next")
+   if sunrise.jd - sunset.jd > 1:
+       sunset = obs.sun_set_time(date, which="next")
+       twilight_end = obs.twilight_evening_astronomical(date, which="next")
    times = [sunset - 1*u.hour]
    while times[-1] < sunrise + 1*u.hour:
       times.append(times[-1] + deltat)
@@ -139,3 +145,44 @@ def computeCurrentQuantities(targets, date=None, location='LCO'):
    res['ST'] = ST
    res['now'] = date
    return(res)
+
+def LSTtoStr(lst):
+    hour = int(lst.hour)
+    minute = int((lst.hour-hour)*60)
+    sec = int((lst.hour-hour-minute/60)*60)
+    return "{:02d}:{:02d}:{:02d}".format(hour,minute,sec)
+
+
+def computeNightParams(date=None, location='LCO'):
+   if date is None:
+      date = Time.now()
+   else:
+      date = Time(date)
+   obs = Observer.at_site(location)
+
+   data = dict(
+           label=['Sunset','Twilight end','Mid point','Twilight begin',
+                  'Sunrise', 'LST @ Sunset','LST @ Mid point', 'LST @ Sunrise',
+                  'Night Duration', 'Moon Phase'])
+   times = makeTimeRange(date, location)
+   mid = (times['te'].jd + times['tb'].jd)/2
+   mid = Time(mid, format='jd')
+   moon = moon_illumination(mid)
+   duration = (times['sr'].jd-times['ss'].jd)*24
+   lstset = obs.local_sidereal_time(times['ss'])
+   lstmid = obs.local_sidereal_time(mid)
+   lstrise = obs.local_sidereal_time(times['sr'])
+   tformat = "%H:%M:%S"
+   data['value'] = [times['ss'].strftime(tformat),
+                    times['te'].strftime(tformat),
+                    mid.strftime(tformat),
+                    times['tb'].strftime(tformat),
+                    times['sr'].strftime(tformat),
+                    #lstset.strftime(tformat),
+                    #lstmid.strftime(tformat),
+                    #lstrise.strftime(tformat),
+                    LSTtoStr(lstset),LSTtoStr(lstmid),LSTtoStr(lstrise),
+                    "{:.1f} hours".format(duration),
+                    "{:.1f} %".format(moon*100)]
+   return data
+
