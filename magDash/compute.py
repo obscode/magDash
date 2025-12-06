@@ -50,14 +50,16 @@ def makeTimeRange(date, location='LCO', deltat=5*u.minute):
 
    # Logic here is to check for previous sunset and next sunrise (assume that
    #  we're currently observing at night. But if not, the previous sunset may
-   #  in the past (the day before), so check for that
+   #  be in the past (the day before), so check for that
    sunset = obs.sun_set_time(date, which="previous")  
    sunrise = obs.sun_rise_time(date, which="next")
-   twilight_end = obs.twilight_evening_astronomical(date, which="previous")
-   twilight_begin = obs.twilight_morning_astronomical(date, which="next")
    if sunrise.jd - sunset.jd > 1:
-       sunset = obs.sun_set_time(date, which="next")
-       twilight_end = obs.twilight_evening_astronomical(date, which="next")
+      # we're at daytime, so we want next sunset
+      sunset = obs.sun_set_time(date, which="next")
+   twilight_end = obs.twilight_evening_astronomical(sunset, which="next")
+   twilight_begin = obs.twilight_morning_astronomical(twilight_end, 
+           which="next")
+   sunrise = obs.sun_rise_time(twilight_begin, which="next")
    times = [sunset - 1*u.hour]
    while times[-1] < sunrise + 1*u.hour:
       times.append(times[-1] + deltat)
