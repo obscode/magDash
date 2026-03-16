@@ -123,7 +123,7 @@ skyplot.plotTargets(data.source, 'zang', 'az', view=data.view,
                     marker='star', size=10, color='grey',fill_color='color')
 img = getLCOsky()
 LCOsky = ColumnDataSource(dict(image=[img]))
-skyplot.fig.figure.image_rgba(image='image',source=LCOsky, x=-1.033, y=-1.028, dw=2.06, dh=2.06,
+skyplot.fig.figure.image_rgba(image='image',source=LCOsky, x=-1.088, y=-1.086, dw=2.16, dh=2.16,
                               level='image')
 #skyplot.plotTargets(data.source, 'alt','az')
 tt = skyplot.fig.figure.select(type=TapTool)
